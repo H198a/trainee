@@ -1,0 +1,141 @@
+import UIKit
+
+class NameAndEmailVC: UIViewController {
+//MARK: Outlet and Variable Declaration
+    @IBOutlet weak var lblTitle: UILabel!
+    @IBOutlet weak var subTitle: UILabel!
+    @IBOutlet weak var txtNameAndEmail: UITextField!
+    @IBOutlet weak var btnContinue: UIButton!
+    @IBOutlet weak var progressBar: UIProgressView!
+    @IBOutlet weak var backgroundImg: UIImageView!
+    
+    var storeDataToFirebase: storeDataFire?
+    var currentStep = 3
+    var newCurrentStep = 4
+    var isName: Bool = false
+    
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        setUp()
+        isName = false
+        updateProgress(currentStep: currentStep, totalSteps: 9)
+    }
+
+    
+    
+    @IBAction func onClickContinue(_ sender: Any) {
+        if isName == false{
+            updateProgress(currentStep: newCurrentStep , totalSteps: 9)
+            // We're on the name screen
+                    guard let nameText = txtNameAndEmail.text, !nameText.isEmpty else {
+                        showAlert(message: "Please enter your name.")
+                        return
+                    }
+            storeDataToFirebase = storeDataFire()
+                    // ✅ Store name (don't reinitialize the struct!)
+                    storeDataToFirebase?.name = nameText
+                    print("Stored name:", storeDataToFirebase?.name ?? "nil")
+           
+           // storeDataToFirebase?.name = name
+//            let name = storeDataToFirebase?.email
+//            print(name)
+
+            
+            isName = true // switch to Email screen
+            updateProgress(currentStep: newCurrentStep, totalSteps: 9)
+            lblTitle.text = "Email Address"
+            subTitle.text = "We'll need your email to stay in touch"
+            txtNameAndEmail.placeholder = "Enter your Email"
+            backgroundImg.image = UIImage(named: "Vector 5")
+          
+            txtNameAndEmail.text = ""  // clear old name input
+        } else{
+            
+            if validateFields(){
+                storeDataToFirebase?.email = txtNameAndEmail.text
+                print("Stored email:", storeDataToFirebase?.email ?? "nil")
+                let nameandEmailVc = storyboard?.instantiateViewController(withIdentifier: "AgeVC") as? AgeVC
+                nameandEmailVc?.currentStep = self.newCurrentStep + 1
+                nameandEmailVc?.storeDataToFirebase = self.storeDataToFirebase
+                navigationController?.pushViewController(nameandEmailVc!, animated: false)
+            }
+        }
+    }
+    
+}
+//MARK: SetUp UI
+extension NameAndEmailVC{
+    func setUp() {
+        
+        txtNameAndEmail.attributedPlaceholder = NSAttributedString(
+            string: txtNameAndEmail.placeholder ?? "",
+            attributes: [NSAttributedString.Key.font: UIFont.systemFont(ofSize: 17)]
+        )
+        // Scaling the progress bar (optional, as per your code)
+        progressBar.transform = CGAffineTransformMakeScale(1, 2)
+        
+        // Apply corner radius to the progressBar
+        progressBar.layer.cornerRadius = 5
+        progressBar.clipsToBounds = true
+        
+        // Optional: Apply a corner radius to the track layer for more rounded effect
+        progressBar.subviews.forEach { subview in
+            subview.layer.cornerRadius = 5
+            subview.clipsToBounds = true
+        }
+    }
+}
+//MARK: Custom Function
+extension NameAndEmailVC{
+    func updateProgress(currentStep: Int, totalSteps: Int) {
+        let progressValue = Float(currentStep) / Float(totalSteps)
+        progressBar.setProgress(progressValue, animated: false)
+    }
+    func validateFields() -> Bool {
+        guard let inputText = txtNameAndEmail.text, !inputText.isEmpty else {
+            showAlert(message: isName ? "Please enter your email." : "Please enter your name.")
+            return false
+        }
+
+        if isName {
+            // Validate email format only if we’re on email step
+            if !Helper.shared.validateEmailId(inputText) {
+                showAlert(message: "Please enter a valid email address.")
+                return false
+            }
+        }
+
+        return true
+    }
+
+    func showAlert(message: String) {
+        let alert = UIAlertController(title: "Error", message: message, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "OK", style: .default, handler: nil))
+        present(alert, animated: true, completion: nil)
+    }
+
+}
+//MARK: Click Events
+extension NameAndEmailVC{
+    @IBAction func onClickBack(_ sender: Any) {
+        if isName == true{
+            if let emailText = txtNameAndEmail.text, !emailText.isEmpty {
+                storeDataToFirebase = storeDataFire()
+                storeDataToFirebase?.email = emailText
+            }
+            isName = false//name screen
+            storeDataToFirebase = storeDataFire()
+            storeDataToFirebase?.name = txtNameAndEmail.text
+            let name = storeDataToFirebase?.name
+            print(name!)
+            updateProgress(currentStep: currentStep , totalSteps: 9)
+            lblTitle.text = "What’s Your Name?"
+            subTitle.text = "Let's Get to Know Each Other"
+            backgroundImg.image = UIImage(named: "Vector 3")
+            txtNameAndEmail.placeholder = "Enter your Name"
+            txtNameAndEmail.text = storeDataToFirebase?.name
+        } else{
+            navigationController?.popViewController(animated: false)
+        }
+    }
+}
