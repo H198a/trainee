@@ -1,0 +1,179 @@
+// Struct to store Firebase data (temporarily for now)
+struct storeDataFire {
+    var selectedImageURLs: [ImageSelection: String?] = [:] // Dictionary to store image URLs by their selection type
+}
+
+
+
+
+import UIKit
+import FirebaseStorage
+
+enum ImageSelection {
+    case first
+    case second
+    case third
+    case fourth
+    case fifth
+    case mainViewImg
+}
+
+class ImageVC: UIViewController {
+    //MARK: Outlet and Variable Declaration
+    @IBOutlet weak var progressBar: UIProgressView!
+    @IBOutlet weak var mainImg: UIButton!
+    @IBOutlet weak var selectImg: UIImageView!
+    @IBOutlet weak var firstImg: UIImageView!
+    @IBOutlet weak var secondImg: UIImageView!
+    @IBOutlet weak var thirdImg: UIImageView!
+    @IBOutlet weak var fourthImg: UIImageView!
+    @IBOutlet weak var fifthImg: UIImageView!
+    
+    var currentStep = 9
+    var storeDataToFirebase: storeDataFire?
+    var selectedImage: ImageSelection?
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        setUP()
+        updateProgress(currentStep: currentStep, totalSteps: 9)
+        storeDataToFirebase = storeDataFire() // Initialize the struct if it's not initialized
+    }
+    
+    @IBAction func clickOnBack(_ sender: Any) {
+        navigationController?.popViewController(animated: false)
+    }
+
+    @IBAction func onClickContinue(_ sender: Any) {
+        let nameandEmailVc = storyboard?.instantiateViewController(withIdentifier: "LocationVC") as? LocationVC
+        nameandEmailVc?.storeDataToFirebase = self.storeDataToFirebase
+        navigationController?.pushViewController(nameandEmailVc!, animated: false)
+    }
+
+    // Button actions to select the image placement
+    @IBAction func onClickImage(_ sender: Any) {
+        selectedImage = .mainViewImg
+        setImage()
+    }
+
+    @IBAction func onClickFirstImg(_ sender: Any) {
+        selectedImage = .first
+        setImage()
+    }
+
+    @IBAction func onClickSecondImg(_ sender: Any) {
+        selectedImage = .second
+        setImage()
+    }
+
+    @IBAction func onClickThirdImg(_ sender: Any) {
+        selectedImage = .third
+        setImage()
+    }
+
+    @IBAction func onClickFourthImg(_ sender: Any) {
+        selectedImage = .fourth
+        setImage()
+    }
+
+    @IBAction func onClickFifthImg(_ sender: Any) {
+        selectedImage = .fifth
+        setImage()
+    }
+}
+
+//MARK: - SetUpUI
+extension ImageVC {
+    func setUP() {
+        // Scaling the progress bar (optional, as per your code)
+        progressBar.transform = CGAffineTransformMakeScale(1, 2)
+
+        // Apply corner radius to the progressBar
+        progressBar.layer.cornerRadius = 5
+        progressBar.clipsToBounds = true
+
+        // Optional: Apply a corner radius to the track layer for more rounded effect
+        progressBar.subviews.forEach { subview in
+            subview.layer.cornerRadius = 5
+            subview.clipsToBounds = true
+        }
+    }
+}
+
+//MARK: - Custom Functions
+extension ImageVC {
+    func updateProgress(currentStep: Int, totalSteps: Int) {
+        let progressValue = Float(currentStep) / Float(totalSteps)
+        progressBar.setProgress(progressValue, animated: false)
+    }
+    
+    // Open image picker
+    func setImage() {
+        let imagePickerVC = UIImagePickerController()
+        imagePickerVC.sourceType = .photoLibrary
+        imagePickerVC.delegate = self
+        present(imagePickerVC, animated: true)
+    }
+
+    // Function to upload the image to Firebase Storage and get the URL
+    func uploadImageToFirebase(image: UIImage, completion: @escaping (String?) -> Void) {
+        let storageRef = Storage.storage().reference().child("images/\(UUID().uuidString).jpg")
+        if let imageData = image.jpegData(compressionQuality: 0.75) {
+            storageRef.putData(imageData, metadata: nil) { (metadata, error) in
+                if error != nil {
+                    print("Error uploading image: \(error?.localizedDescription ?? "")")
+                    completion(nil)
+                    return
+                }
+
+                // Get the image URL
+                storageRef.downloadURL { (url, error) in
+                    if let downloadURL = url {
+                        completion(downloadURL.absoluteString)
+                    } else {
+                        print("Error getting download URL: \(error?.localizedDescription ?? "")")
+                        completion(nil)
+                    }
+                }
+            }
+        }
+    }
+}
+
+//MARK: - UIImagePickerControllerDelegate, UINavigationControllerDelegate
+extension ImageVC: UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+    func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
+        picker.dismiss(animated: true, completion: nil)
+        
+        if let image = info[.originalImage] as? UIImage {
+            // Store the selected image in Firebase Storage and get the URL
+            uploadImageToFirebase(image: image) { (urlString) in
+                guard let urlString = urlString else { return }
+
+                // Store the image URL in the struct
+                switch self.selectedImage {
+                case .mainViewImg:
+                    self.selectImg.image = image
+                    self.storeDataToFirebase?.selectedImageURLs[.mainViewImg] = urlString
+                case .first:
+                    self.firstImg.image = image
+                    self.storeDataToFirebase?.selectedImageURLs[.first] = urlString
+                case .second:
+                    self.secondImg.image = image
+                    self.storeDataToFirebase?.selectedImageURLs[.second] = urlString
+                case .third:
+                    self.thirdImg.image = image
+                    self.storeDataToFirebase?.selectedImageURLs[.third] = urlString
+                case .fourth:
+                    self.fourthImg.image = image
+                    self.storeDataToFirebase?.selectedImageURLs[.fourth] = urlString
+                case .fifth:
+                    self.fifthImg.image = image
+                    self.storeDataToFirebase?.selectedImageURLs[.fifth] = urlString
+                default:
+                    return
+                }
+            }
+        }
+    }
+}
