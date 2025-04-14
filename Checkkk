@@ -1,0 +1,25 @@
+@IBAction func continueButtonTapped(_ sender: UIButton) {
+    guard let phone = phoneTextField.text, !phone.isEmpty else {
+        showAlert(message: "Please enter a phone number")
+        return
+    }
+
+    // Optional: Normalize phone number (add country code if needed)
+    let formattedPhone = "+91" + phone   // example for India
+
+    AuthService.shared.checkUserAndProceed(phone: formattedPhone) { userData, needsSignUp, error in
+        DispatchQueue.main.async {
+            if let error = error {
+                self.showAlert(message: "Error: \(error.localizedDescription)")
+                return
+            }
+
+            if needsSignUp {
+                self.showAlert(message: "No account found with this number. Please sign up.")
+            } else {
+                // Navigate to home screen
+                self.navigateToHomeScreen(userData: userData)
+            }
+        }
+    }
+}
