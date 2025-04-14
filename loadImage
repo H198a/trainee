@@ -1,0 +1,362 @@
+import UIKit
+import OTPFieldView
+
+class OTPVC: UIViewController {
+//MARK: Outlet and Variable Declaration
+    @IBOutlet weak var progressBar: UIProgressView!
+    @IBOutlet weak var otpView: OTPFieldView!
+    @IBOutlet weak var btnResendCode: UIButton!
+    var currentStep = 2
+    var storeDataToFirebase: FirebaseData?
+    var fromLogin: Bool = false
+    
+    //var verificationID: String?
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        //self.progressBar.isHidden = true
+    }
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        setUp()
+        updateProgress(currentStep: currentStep, totalSteps: 9)
+        implementOtpView()
+        //storeDataToFirebase = FirebaseData()
+    }
+    @IBAction func onClickBack(_ sender: Any) {
+        navigationController?.popViewController(animated: false)
+    }
+    
+    @IBAction func onClickVerify(_ sender: Any) {
+        // Get all OTP text fields
+          let otpFields = otpView.subviews.compactMap { $0 as? UITextField }
+        let enteredOTP = otpFields.compactMap { $0.text }.joined()
+        if fromLogin {
+           
+                if enteredOTP == "1234" {
+                    // Correct OTP → Login Flow → Home
+                    Helper.shared.setHomeRoot(from: self.storyboard!)
+                } else {
+                    // Incorrect OTP in login flow
+                    showAlert(message: "Incorrect OTP")
+                }
+        } else {
+            // Always go to signup next step regardless of OTP
+            if enteredOTP.isEmpty{
+                showAlert(message: "Please enter OTP")
+            }
+            navigateToSignup()
+        }
+    }
+}
+//MARK: SetUP UI
+extension OTPVC{
+    func setUp() {
+        // Scaling the progress bar (optional, as per your code)
+        progressBar.transform = CGAffineTransformMakeScale(1, 2)
+        
+        // Apply corner radius to the progressBar
+        progressBar.layer.cornerRadius = 5
+        progressBar.clipsToBounds = true
+        
+        // Optional: Apply a corner radius to the track layer for more rounded effect
+        progressBar.subviews.forEach { subview in
+            subview.layer.cornerRadius = 5
+            subview.clipsToBounds = true
+        }
+    }
+}
+//MARK: Custom Functions
+extension OTPVC{
+    func implementOtpView(){
+        self.otpView.fieldsCount = 4
+
+        self.otpView.defaultBorderColor = .black
+      
+        self.otpView.backgroundColor = .clear
+        self.otpView.defaultBorderColor = .clear
+        self.otpView.fieldFont = UIFont.systemFont(ofSize: 30)
+        self.otpView.filledBackgroundColor = .white
+        self.otpView.requireCursor = false
+        self.otpView.fieldSize = 60
+        self.otpView.separatorSpace = 20
+        self.otpView.toolbarPlaceholder = "-"
+        self.otpView.shouldAllowIntermediateEditing = true
+        self.otpView.delegate = self
+        self.otpView.defaultBackgroundColor = .white
+        self.otpView.initializeUI()
+        //  Set placeholder
+        for textField in otpView.subviews.compactMap({ $0 as? UITextField }) {//get all subviews inside otpView,  tries to cast each subview to UITextField.
+            textField.placeholder = "-"
+            textField.textAlignment = .center
+            textField.textColor = .black
+        }
+        let attributedString = NSAttributedString(
+            string: "Resend Code",
+            attributes: [
+                .underlineStyle: NSUnderlineStyle.single.rawValue,
+                .foregroundColor: UIColor.btn,
+                .font: UIFont.setFont(type: .Bold, size: 16)
+            ]
+        )
+        btnResendCode.setAttributedTitle(attributedString, for: .normal)
+    }
+    func updateProgress(currentStep: Int, totalSteps: Int) {
+        let progressValue = Float(currentStep) / Float(totalSteps)
+        progressBar.setProgress(progressValue, animated: false)
+    }
+    func showAlert(message: String) {
+        let alert = UIAlertController(title: "Error", message: message, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "OK", style: .default, handler: nil))
+        present(alert, animated: true, completion: nil)
+    }
+    func navigateToSignup(){
+        let nameandEmailVc = storyboard?.instantiateViewController(withIdentifier: "NameAndEmailVC") as? NameAndEmailVC
+        nameandEmailVc?.currentStep = self.currentStep + 1
+        nameandEmailVc?.storeDataToFirebase = self.storeDataToFirebase
+        navigationController?.pushViewController(nameandEmailVc!, animated: false)
+    }
+    func navigateToHome(){
+        let homeVC = storyboard?.instantiateViewController(withIdentifier: "") as? HomeVC
+        navigationController?.pushViewController(homeVC!, animated: true)
+    }
+    
+}
+//MARK: OTPFieldDelgate
+extension OTPVC: OTPFieldViewDelegate{
+//    Show keyboard automatically.
+    func shouldBecomeFirstResponderForOTP(otpTextFieldIndex index: Int) -> Bool {
+        return true
+    }
+    
+    func enteredOTP(otp: String) {
+       // handlePinEntry(otp)
+        //implementOtpView()
+        storeDataToFirebase?.verificationCode = otp
+        print("otp",otp)
+        //print(otp)
+    }
+    
+    func hasEnteredAllOTP(hasEnteredAll: Bool) -> Bool {
+        print("entered OTP: \(hasEnteredAll)")
+        return false
+    }
+}
+/*
+ 
+ */
+@IBAction func onClickContinueToOTP(_ sender: Any) {
+        storeDataToFirebase?.mobileNumber = txtEnterPhone.text
+        // print("mobile number: ",storeDataToFirebase?.mobileNumber)
+        let name = storeDataToFirebase?.mobileNumber
+        print(name ?? "nil")
+        if let phoneNumber = name { // Use optional binding to safely access the phone number
+            print(phoneNumber)
+            if validateFields(){
+                let otpVC = storyboard?.instantiateViewController(withIdentifier: "OTPVC") as? OTPVC
+                otpVC?.currentStep = self.currentStep + 1
+                otpVC?.storeDataToFirebase = self.storeDataToFirebase
+                otpVC?.fromLogin = false
+                navigationController?.pushViewController(otpVC!, animated: false)
+            }
+        }
+    }
+
+@IBAction func onClickContinue(_ sender: Any) {
+        if validateFields(){
+            guard let phone = txtEnterPhone.text, !phone.isEmpty else {
+                showAlert(message: "Please enter a phone number")
+                return
+            }
+
+            AuthService.shared.checkUser(phone: phone) { userData, needsSignUp, error in
+                DispatchQueue.main.async {
+                    if let error = error {
+                        self.showAlert(message: "Error: \(error.localizedDescription)")
+                        return
+                    }
+
+                    if needsSignUp {
+                        self.showAlert(message: "user not found")
+                    } else {
+                        // Navigate to home screen
+                       // self.navigateToHomeScreen(userData: userData)
+                        print("userData: ",userData!)
+                        let otpVC = self.storyboard?.instantiateViewController(withIdentifier: "OTPVC") as? OTPVC
+//                        otpVC!.progressBar.isHidden = false
+                        otpVC?.fromLogin = true
+                        self.navigationController?.pushViewController(otpVC!, animated: false)
+                    }
+                }
+            }
+        }
+    }
+
+import UIKit
+import Koloda
+import FirebaseCore
+import FirebaseAuth
+import FirebaseFirestore
+import FirebaseDatabase
+import Kingfisher
+import SDWebImage
+
+class HomeVC: UIViewController{
+//MARK: Outlet and Variable Declaration
+
+    @IBOutlet weak var cvStory: UICollectionView!
+    @IBOutlet weak var likeImg: UIImageView!
+    @IBOutlet weak var starImg: UIImageView!
+    @IBOutlet weak var likeView: UIControl!
+    @IBOutlet weak var startView: UIControl!
+    @IBOutlet weak var kolodaVIew: KolodaView!
+    var arrUser = [FirebaseData]()
+    var arrDisplayImageViewDetail: FirebaseData?
+    var containers = [SwipeImageVC]()
+    var arrImages = [UIImage(named: "Rectangle 2535"),
+                     UIImage(named: "Jessica"),
+                     UIImage(named: "Micheal"),
+                     UIImage(named: "Add Story"),
+                     UIImage(named: "Rectangle 2535")
+    ]
+ 
+    let arrImageUrls: [URL] = [
+        URL(string: "https://images.unsplash.com/photo-1603415526960-f9e418d6f383")!,
+        URL(string: "https://images.unsplash.com/photo-1612831455542-3e98e6e2db74")!,
+        URL(string: "https://images.unsplash.com/photo-1547721064-da6cfb341d50")!,
+        URL(string: "https://images.unsplash.com/photo-1503023345310-bd7c1de61c7d")!,
+        URL(string: "https://images.unsplash.com/photo-1494790108377-be9c29b29330")!,
+        URL(string: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde")!
+    ]
+    //var selectedIndexes = [Int]()
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        let nibName = UINib(nibName: "HomeCell", bundle: nil)
+        cvStory.register(nibName, forCellWithReuseIdentifier: "HomeCell")
+        arrDisplayImageViewDetail = FirebaseData()
+        kolodaVIew.delegate = self
+        kolodaVIew.dataSource = self
+        loadContainerViews()
+        kolodaVIew.reloadData()
+        fetchUserData()
+        
+    }
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+   
+        navigationController?.setNavigationBarHidden(true, animated: true)
+    }
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        navigationController?.setNavigationBarHidden(true, animated: true)
+    }
+    
+    @IBAction func onClickLike(_ sender: UIControl) {
+        //kolodaVieww.swipe(.left)
+        kolodaVIew.swipe(.left)
+    }
+    
+    @IBAction func onClickStar(_ sender: UIControl) {
+       // kolodaVieww.swipe(.right)
+        kolodaVIew.swipe(.right)
+    }
+}
+
+//MARK: custom Functions
+extension HomeVC{
+    func loadContainerViews(){
+        for _ in 0..<arrImageUrls.count - 1{
+            let vc = self.storyboard?.instantiateViewController(withIdentifier: "SwipeImageVC") as! SwipeImageVC
+//`            vc.lblAge.text = arrDisplayImageViewDetail?.age
+//            vc.lblCity.text = ""
+//            vc.lblName.text = arrDisplayImageViewDetail?.name
+            self.addChild(vc)
+            containers.append(vc)
+        }
+    }
+    func fetchUserData() {
+        var currentUserEmail: String?
+        
+        if let googleEmail = UserDefaults.standard.string(forKey: "phoneNumber")?.lowercased(){
+            currentUserEmail = googleEmail
+        }
+        guard let currentUserEmail = currentUserEmail else {
+            print("No logged-in user found.")
+            return
+        }
+        
+        //ref = Database.database().reference()
+        
+        Firestore.firestore().collection("CupidArrowData").getDocuments { (querySnapshot, err) in
+            if let err = err {
+                print("Error fetching data: \(err)")
+            } else {
+                self.arrUser.removeAll() // Clear old data
+                
+                for document in querySnapshot!.documents {
+                    let profile = document["image"] as? String
+                    let name = document["name"] as? String ?? "No name"
+                    let age = document["age"] as? String ?? "No age"
+                    let phone = document["phone"] as? String ?? "No Phone"
+
+                    // Exclude the current logged-in user
+                    if phone.lowercased() != currentUserEmail.lowercased() {
+                        self.arrUser.append(FirebaseData(profilePic: profile, name: name, age: age))
+                    }
+                }
+
+                DispatchQueue.main.async {
+                    self.cvStory.reloadData()
+                    self.kolodaVIew.reloadData()
+                }
+            }
+        }
+    }
+}
+//MARK: UICollectionViewDataSource, UICollectionViewDelegate
+extension HomeVC: UICollectionViewDataSource, UICollectionViewDelegate{
+    func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
+        print("arrUser: ",arrUser)
+        return arrUser.count
+    }
+    
+    func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
+        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "HomeCell", for: indexPath) as! HomeCell
+        let storyData = arrUser[indexPath.item]
+        cell.lblHome.text = storyData.name
+        cell.lblHome.font = .setFont(type: .Bold, size: 16)
+//        let url = ""
+        let randomImageUrl = arrImageUrls.randomElement()
+        cell.homeImg.sd_setImage(with: randomImageUrl)
+
+//        cell.homeImg.kf.setImage(with: storyData.profilePic)
+        return cell
+    }
+}
+//MARK: KolodaViewDataSource, KolodaViewDelegate
+extension HomeVC: KolodaViewDataSource, KolodaViewDelegate {
+    func kolodaNumberOfCards(_ koloda: Koloda.KolodaView) -> Int {
+        print(arrUser.count)
+        return arrUser.count
+    }
+    func koloda(_ koloda: Koloda.KolodaView, viewForCardAt index: Int) -> UIView {
+        guard index < containers.count, index < arrUser.count else{
+            return UIView()
+        }
+        
+        let container = containers[index]
+        container.loadViewIfNeeded()
+        let randomImageUrl = arrImageUrls.randomElement()
+     
+        container.swipeImage.sd_setImage(with: randomImageUrl)
+        //{ image, _, _, _ in
+//             container.image = image
+//         }
+        container.resetContent()
+        
+       // self.kolodaVIew.addSubview(container.view)
+        return container.view
+    }
+}
+
+
