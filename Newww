@@ -1,0 +1,66 @@
+func checkUserAndProceed(phone: String, completion: @escaping (_ userData: fireStoreData?, _ needsSignUp: Bool, _ error: Error?) -> Void) {
+    let db = Firestore.firestore()
+    
+    db.collection("CupidArrowData")
+        .whereField("phone", isEqualTo: phone)
+        .getDocuments { snapshot, error in
+            if let error = error {
+                completion(nil, false, error)
+                return
+            }
+            
+            guard let documents = snapshot?.documents, !documents.isEmpty else {
+                // No user found — needs to sign up
+                completion(nil, true, nil)
+                return
+            }
+            
+            // User found, extract data
+            let document = documents[0]
+            let data = document.data()
+            
+            let userData = fireStoreData(
+                id: data["id"] as? String ?? "",
+                name: data["name"] as? SAuthService.shared.checkUserAndProceed(phone: "+911234567890") { userData, needsSignUp, error in
+    if let error = error {
+        print("Error checking user: \(error.localizedDescription)")
+        return
+    }
+
+    if needsSignUp {
+        print("User does not exist. Proceed to sign-up.")
+        // Show sign-up screen or trigger OTP verification for sign-up
+    } else if let userData = userData {
+        print("User exists: \(userData.name ?? "No name")")
+        // Proceed to signed-in home or dashboard screen
+    }
+}
+tring,
+                email: data["email"] as? String,
+                age: data["age"] as? String,
+                gender: data["gender"] as? String,
+                phone: data["phone"] as? String,
+                OTP: data["verificationCode"] as? String,
+                interests: data["interests"] as? [String] ?? [],
+                lookingFor: data["lookingFor"] as? String,
+                location: data["location"] as? [String] ?? [],
+                image: data["profle"] as? String
+            )
+            
+            completion(userData, false, nil)
+        }
+}
+AuthService.shared.checkUserAndProceed(phone: "+911234567890") { userData, needsSignUp, error in
+    if let error = error {
+        print("Error checking user: \(error.localizedDescription)")
+        return
+    }
+
+    if needsSignUp {
+        print("User does not exist. Proceed to sign-up.")
+        // Show sign-up screen or trigger OTP verification for sign-up
+    } else if let userData = userData {
+        print("User exists: \(userData.name ?? "No name")")
+        // Proceed to signed-in home or dashboard screen
+    }
+}
