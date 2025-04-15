@@ -30,3 +30,18 @@ func fetchUserData() {
         }
     }
 }
+func getCityFromLatLong(lat: Double, long: Double, completion: @escaping (String?) -> Void) {
+    let location = CLLocation(latitude: lat, longitude: long)
+    CLGeocoder().reverseGeocodeLocation(location) { placemarks, error in
+        if let error = error {
+            print("Reverse geocode failed: \(error.localizedDescription)")
+            completion(nil)
+        } else if let placemark = placemarks?.first {
+            let city = placemark.locality ?? placemark.subAdministrativeArea ?? "Unknown City"
+            completion(city)
+        } else {
+            completion(nil)
+        }
+    }
+}
+
