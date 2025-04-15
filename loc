@@ -1,0 +1,406 @@
+import UIKit
+import FirebaseAuth
+import CoreLocation
+
+class LocationVC: UIViewController {
+    @IBOutlet weak var btnAllowManually: UIButton!
+    @IBOutlet weak var btnlocationAccess: UIButton!
+    var storeDataToFirebase: FirebaseData?
+    let locationManager = CLLocationManager()
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        setUP()
+        // Ask for Authorisation from the User.
+//        self.locationManager.requestAlwaysAuthorization()
+
+        // For use in foreground
+//        self.locationManager.requestWhenInUseAuthorization()
+
+//        if CLLocationManager.locationServicesEnabled() {
+//            locationManager.delegate = self
+//            locationManager.desiredAccuracy = kCLLocationAccuracyNearestTenMeters
+//            locationManager.startUpdatingLocation()
+//        }
+    }
+}
+//MARK: SetUp UI
+extension LocationVC{
+    func setUP(){
+        let attributedString = NSAttributedString(
+            string: "Enter Location Manually",
+            attributes: [
+                .foregroundColor: UIColor.btn,
+                .font: UIFont.setFont(type: .Bold, size: 18)
+            ]
+        )
+        let attributedStringBtn = NSAttributedString(
+            string: "Allow Location Access",
+            attributes: [
+                .foregroundColor: UIColor.btn,
+                .font: UIFont.setFont(type: .Bold, size: 18)
+            ]
+        )
+        btnAllowManually.setAttributedTitle(attributedString, for: .normal)
+        btnlocationAccess.setAttributedTitle(attributedStringBtn, for: .normal)
+    }
+}
+//MARK: Custom Functions
+extension LocationVC{
+    func showAlert(message: String) {
+        let alert = UIAlertController(title: "Error", message: message, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "OK", style: .default, handler: nil))
+        present(alert, animated: true, completion: nil)
+    }
+
+    func showAlertt(message: String) {
+        let alert = UIAlertController(title: "Location Permission Needed", message: message, preferredStyle: .alert)
+        
+        // Cancel Action
+        let cancelAction = UIAlertAction(title: "Cancel", style: .cancel) { _ in
+            // Optional: pop current view controller
+            self.navigationController?.popViewController(animated: true)
+        }
+        
+        // Settings Action
+        let settingsAction = UIAlertAction(title: "Settings", style: .default) { _ in
+            if let appSettings = URL(string: UIApplication.openSettingsURLString) {
+                if UIApplication.shared.canOpenURL(appSettings) {
+                    UIApplication.shared.open(appSettings)
+                }
+            }
+        }
+        
+        alert.addAction(cancelAction)
+        alert.addAction(settingsAction)
+        
+        present(alert, animated: true, completion: nil)
+    }
+
+    func navigateToHome(){
+        Helper.shared.setHomeRoot(from: self.storyboard!)
+    }
+    func updateLocation(){
+        let locations = [CLLocation]()
+        guard let currentLocation = locations.last else { return }
+        let geocoder = CLGeocoder()
+        geocoder.reverseGeocodeLocation(currentLocation) { placemarks, error in
+            if let error = error {
+                print("Reverse geocoding failed: \(error.localizedDescription)")
+                return
+            }
+            if let placemark = placemarks?.first {
+                let city = placemark.locality ?? "Unknown City"
+                //let country = placemark.country ?? "Unknown Country"
+                print("User is in: \(city)")
+                self.storeDataToFirebase?.location = [city]
+            }
+        }
+    }
+}
+extension LocationVC: CLLocationManagerDelegate{
+    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+//        guard let currentLocation = locations.last else { return }
+//        
+//        let geocoder = CLGeocoder()
+//        geocoder.reverseGeocodeLocation(currentLocation) { placemarks, error in
+//            if let error = error {
+//                print("Reverse geocoding failed: \(error.localizedDescription)")
+//                return
+//            }
+//            if let placemark = placemarks?.first {
+//                let city = placemark.locality ?? "Unknown City"
+//                //let country = placemark.country ?? "Unknown Country"
+//                print("User is in: \(city)")
+//                self.storeDataToFirebase?.location = [city]
+//            }
+//        }
+    }
+}
+//MARK: Click Events
+extension LocationVC{
+    @IBAction func onClickAllowLocation(_ sender: Any) {
+        LocationManager.shared.requestLocation { [weak self] status in
+            DispatchQueue.main.async {
+                if status == .authorizedWhenInUse || status == .authorizedAlways {
+                    //self!.storeDataToFirebase?.location = ["ind","bvn"]
+                    self!.storeDataToFirebase?.id = UUID().uuidString
+                    guard let userData = self!.storeDataToFirebase else {
+                        print("No user data to submit.")
+                        return
+                    }
+                    print("saved data",userData)
+                   // print("location: ",self!.storeDataToFirebase?.location)
+                   // AuthService.shared.saveUserDataToFirebase(with: userData)
+                    AuthService.shared.signUpAndSaveUser(userData: userData)
+                    self!.updateLocation()
+                    self!.navigateToHome()
+                    self!.locationManager.startUpdatingLocation()
+                } else {
+                    //  Permission not granted
+                    self?.showAlertt(message: "Please allow location access to continue.")
+                }
+            }
+        }
+    }
+}
+
+
+import UIKit
+import Koloda
+import FirebaseCore
+import FirebaseAuth
+import FirebaseFirestore
+import FirebaseDatabase
+import Kingfisher
+import SDWebImage
+
+class HomeVC: UIViewController{
+//MARK: Outlet and Variable Declaration
+
+    @IBOutlet weak var cvStory: UICollectionView!
+    @IBOutlet weak var likeImg: UIImageView!
+    @IBOutlet weak var starImg: UIImageView!
+    @IBOutlet weak var likeView: UIControl!
+    @IBOutlet weak var startView: UIControl!
+    @IBOutlet weak var kolodaVIew: KolodaView!
+    var arrUser = [FirebaseData]()
+   
+    var containers = [SwipeImageVC]()
+    var arrImages = [UIImage(named: "Rectangle 2535"),
+                     UIImage(named: "Jessica"),
+                     UIImage(named: "Micheal"),
+                     UIImage(named: "Add Story"),
+                     UIImage(named: "Rectangle 2535")
+    ]
+ 
+    let arrImageUrls: [String] = [
+        "https://images.unsplash.com/photo-1547721064-da6cfb341d50",
+        "https://images.unsplash.com/photo-1503023345310-bd7c1de61c7d",
+       "https://images.unsplash.com/photo-1494790108377-be9c29b29330",
+       "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde"
+    ]
+    //var selectedIndexes = [Int]()
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        let nibName = UINib(nibName: "HomeCell", bundle: nil)
+        cvStory.register(nibName, forCellWithReuseIdentifier: "HomeCell")
+//        arrDisplayImageViewDetail = FirebaseData()
+        kolodaVIew.delegate = self
+        kolodaVIew.dataSource = self
+//        loadContainerViews()
+        //kolodaVIew.reloadData()
+        fetchUserData()
+        
+    }
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+   
+        navigationController?.setNavigationBarHidden(true, animated: true)
+    }
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        navigationController?.setNavigationBarHidden(true, animated: true)
+    }
+    
+    @IBAction func onClickLike(_ sender: UIControl) {
+        //kolodaVieww.swipe(.left)
+        kolodaVIew.swipe(.left)
+    }
+    
+    @IBAction func onClickStar(_ sender: UIControl) {
+       // kolodaVieww.swipe(.right)
+        kolodaVIew.swipe(.right)
+    }
+}
+
+//MARK: custom Functions
+extension HomeVC{
+    func loadContainerViews(){
+        for _ in 0...arrUser.count{
+            let vc = self.storyboard?.instantiateViewController(withIdentifier: "SwipeImageVC") as! SwipeImageVC
+//`            vc.lblAge.text = arrDisplayImageViewDetail?.age
+//            vc.lblCity.text = ""
+//            vc.lblName.text = arrDisplayImageViewDetail?.name
+            self.addChild(vc)
+            containers.append(vc)
+        }
+    }
+    
+    
+    
+    func fetchUserData() {
+        var currentUserEmail: String?
+        
+        if let googleEmail = UserDefaults.standard.string(forKey: "phoneNumber")?.lowercased(){
+            currentUserEmail = googleEmail
+        }
+        guard let currentUserEmail = currentUserEmail else {
+            print("No logged-in user found.")
+            return
+        }
+        
+        //ref = Database.database().reference()
+        
+        Firestore.firestore().collection("CupidArrowData").getDocuments { (querySnapshot, err) in
+            if let err = err {
+                print("Error fetching data: \(err)")
+            } else {
+                self.arrUser.removeAll() // Clear old data
+                
+                for document in querySnapshot!.documents {
+                    //let profile = document["image"] as? String
+                    let name = document["name"] as? String ?? "No name"
+                    let age = document["age"] as? String ?? "No age"
+                    let phone = document["phone"] as? String ?? "No Phone"
+                    let location = document["location"] as? [String] ?? ["no location"]
+                    let randomImageUrl = self.arrImageUrls.randomElement()
+                    let profile = randomImageUrl
+                    // Exclude the current logged-in user
+                    print("stored location:",location)
+                    if phone.lowercased() != currentUserEmail.lowercased() {
+                        self.arrUser.append(FirebaseData(profilePic: profile, location: location, name: name, age: age))
+                    }
+                }
+
+                DispatchQueue.main.async {
+                    self.cvStory.reloadData()
+                    self.loadContainerViews()
+                    self.kolodaVIew.reloadData()
+                }
+            }
+        }
+    }
+}
+//MARK: UICollectionViewDataSource, UICollectionViewDelegate
+extension HomeVC: UICollectionViewDataSource, UICollectionViewDelegate{
+    func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
+        print("arrUser: ",arrUser)
+        return arrUser.count
+    }
+    
+    func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
+        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "HomeCell", for: indexPath) as! HomeCell
+        let storyData = arrUser[indexPath.item]
+        cell.lblHome.text = storyData.name
+        cell.lblHome.font = .setFont(type: .Bold, size: 16)
+//        let url = ""
+       
+        cell.homeImg.sd_setImage(with: URL(string: storyData.profilePic ?? ""))
+
+//        cell.homeImg.kf.setImage(with: storyData.profilePic)
+        return cell
+    }
+}
+//MARK: KolodaViewDataSource, KolodaViewDelegate
+extension HomeVC: KolodaViewDataSource, KolodaViewDelegate {
+    func kolodaNumberOfCards(_ koloda: Koloda.KolodaView) -> Int {
+        print(arrUser.count)
+        return arrUser.count
+    }
+    func koloda(_ koloda: Koloda.KolodaView, viewForCardAt index: Int) -> UIView {
+        guard index < containers.count, index < arrUser.count else{
+            return UIView()
+        }
+        
+        let container = containers[index]
+        container.loadViewIfNeeded()
+//        let randomImageUrl = arrImageUrls.randomElement()
+//     
+//        container.swipeImage.sd_setImage(with: randomImageUrl)
+        //{ image, _, _, _ in
+//             container.image = image
+//         }
+        container.arrDisplayImageViewDetail = arrUser[index]
+        container.resetContent()
+        
+       // self.kolodaVIew.addSubview(container.view)
+        return container.view
+    }
+}
+
+
+var location: [String?] = []
+
+import Foundation
+import FirebaseCore
+import FirebaseAuth
+import FirebaseFirestore
+import FirebaseDatabase
+var ref: DatabaseReference!
+
+class AuthService {
+    public static let shared = AuthService()
+    let userDefaults = UserDefaults.standard
+    var locationDictArray: [[String: String]] = []
+    
+    // Function to sign in (or create if new) with phone number and save data to Firestore
+    func signUpAndSaveUser(userData: FirebaseData) {
+        if let lat = userData.location.first ?? nil,
+           let lon = userData.location.dropFirst().first ?? nil {
+            locationDictArray = [["latitude": lat, "longitude": lon]]
+        }
+            let data: [String: Any] = [
+                "id": userData.id ?? "",
+                "name": userData.name ?? "",
+                "email": userData.email ?? "",
+                "age": userData.age ?? "",
+                "gender": userData.gender ?? "",
+                "phone": userData.mobileNumber ?? "",
+                "verificationCode": userData.verificationCode ?? "",
+                "interests": userData.interests.compactMap { $0 },
+                "lookingFor": userData.lookingFor ?? "",
+                "location": locationDictArray,
+                "profile": userData.profilePic ?? "",
+                "createdAt": Date()
+            ]
+            
+            let db = Firestore.firestore()
+            db.collection("CupidArrowData").document(userData.id ?? "optional id").setData(data) { firestoreError in
+                if let firestoreError = firestoreError {
+                    print("error saving data: \(firestoreError.localizedDescription)")
+                    // completion(nil, firestoreError)
+                } else {
+                    print("data saved")
+                    //completion(user, nil)
+                    self.userDefaults.set(userData.mobileNumber, forKey: "phoneNumber")
+                }
+            }
+        }
+        func checkUser(phone: String, completion: @escaping (_ userData: FirebaseData?, _ needSignup: Bool, _ error: Error?) -> Void) {
+            let db = Firestore.firestore()
+            ref = Database.database().reference()
+            db.collection("CupidArrowData").whereField("phone", isEqualTo: phone).getDocuments { snapShot,error in
+                if let error = error{
+                    print("error: ",error)
+                    completion(nil, false, nil)
+                    return
+                }
+                guard let documents = snapShot?.documents, !documents.isEmpty else{
+                    //no user currently loggedin
+                    completion(nil, true, nil)
+                    return
+                }
+                //user found
+                let document = documents[0]
+                let data = document.data()
+                
+                let userData = FirebaseData(
+                    id: data["id"] as? String ?? "",
+                    mobileNumber: data["phone"] as? String,
+                    lookingFor: data["lookingFor"] as? String,
+                    profilePic: data["profle"] as? String,
+                    location: data["location"] as? [String] ?? [],
+                    verificationCode: data["verificationCode"] as? String,
+                    name: data["name"] as? String ?? "",
+                    email: data["email"] as? String,
+                    gender: data["gender"] as? String,
+                    age: data["age"] as? String,
+                    interests: data["interests"] as? [String] ?? []
+                )
+                completion(userData, false, nil)
+            }
+        }
+    }
+
+    
+
