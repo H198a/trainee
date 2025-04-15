@@ -45,3 +45,28 @@ func getCityFromLatLong(lat: Double, long: Double, completion: @escaping (String
     }
 }
 
+
+func koloda(_ koloda: KolodaView, didSwipeCardAt index: Int, in direction: SwipeResultDirection) {
+    switch direction {
+    case .up:
+        print("Swiped Up")
+    case .down:
+        print("Swiped Down")
+    default:
+        break
+    }
+}
+
+@IBAction func swipeUpButtonTapped(_ sender: UIButton) {
+    kolodaView.swipe(.up)
+}
+
+@IBAction func swipeDownButtonTapped(_ sender: UIButton) {
+    kolodaView.swipe(.down)
+}
+
+func koloda(_ koloda: KolodaView, allowedDirectionsForIndex index: Int) -> [SwipeResultDirection] {
+    return [.up, .down, .left, .right]
+}
+
+
