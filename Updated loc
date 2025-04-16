@@ -18,3 +18,20 @@ db.collection("users").document(userId).getDocument { (document, error) in
         print("Document not found: \(error?.localizedDescription ?? "Unknown error")")
     }
 }
+
+
+
+let data = document.data()
+let location = data?["location"] as? [String: Any] ?? [:]
+let city = location["City"] as? String ?? "No City"
+
+class HomeVC: UIViewController {
+    var user: FirebaseData?
+
+    @IBOutlet weak var lblCity: UILabel!
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        lblCity.text = user?.city
+    }
+}
