@@ -1,0 +1,20 @@
+import FirebaseFirestore
+
+let db = Firestore.firestore()
+let userId = "yourUserID" // Replace with actual user ID
+
+db.collection("users").document(userId).getDocument { (document, error) in
+    if let document = document, document.exists {
+        if let data = document.data(),
+           let location = data["location"] as? [String: Any],
+           let city = location["city"] as? String {
+            DispatchQueue.main.async {
+                self.lblCity.text = city
+            }
+        } else {
+            print("City not found in location dictionary")
+        }
+    } else {
+        print("Document not found: \(error?.localizedDescription ?? "Unknown error")")
+    }
+}
