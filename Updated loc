@@ -1,37 +1,65 @@
-import FirebaseFirestore
-
-let db = Firestore.firestore()
-let userId = "yourUserID" // Replace with actual user ID
-
-db.collection("users").document(userId).getDocument { (document, error) in
-    if let document = document, document.exists {
-        if let data = document.data(),
-           let location = data["location"] as? [String: Any],
-           let city = location["city"] as? String {
-            DispatchQueue.main.async {
-                self.lblCity.text = city
+ @IBAction func onClickFilters(_ sender: UIButton) {
+        if let infoViewController = storyboard?.instantiateViewController(identifier: "FilterVC") as? FilterVC {
+            
+            infoViewController.modalPresentationStyle = .overCurrentContext
+            infoViewController.modalTransitionStyle = .crossDissolve
+            tabBarController?.tabBar.isHidden = true
+            // Restore tab bar after dismiss
+            infoViewController.onDismiss = { [weak self] in
+                self?.tabBarController?.tabBar.isHidden = false
             }
-        } else {
-            print("City not found in location dictionary")
+            present(infoViewController, animated: false)
         }
-    } else {
-        print("Document not found: \(error?.localizedDescription ?? "Unknown error")")
     }
-}
 
 
 
-let data = document.data()
-let location = data?["location"] as? [String: Any] ?? [:]
-let city = location["City"] as? String ?? "No City"
 
-class HomeVC: UIViewController {
-    var user: FirebaseData?
 
-    @IBOutlet weak var lblCity: UILabel!
+import UIKit
 
+class FilterVC: UIViewController {
+   var onDismiss: (() -> Void)? //clousure to set tabbar hidden
+    lazy var blurredView: UIView = {
+            // 1. create container view
+            let containerView = UIView()
+            // 2. create custom blur view
+            let blurEffect = UIBlurEffect(style: .light)
+            let customBlurEffectView = CustomVisualEffectView(effect: blurEffect, intensity: 0.2)
+            customBlurEffectView.frame = self.view.bounds
+            // 3. create semi-transparent black view
+            let dimmedView = UIView()
+            dimmedView.backgroundColor = .black.withAlphaComponent(0.6)
+            dimmedView.frame = self.view.bounds
+            
+            // 4. add both as subviews
+            containerView.addSubview(customBlurEffectView)
+            containerView.addSubview(dimmedView)
+            return containerView
+        }()
+        
     override func viewDidLoad() {
         super.viewDidLoad()
-        lblCity.text = user?.city
+        setupView()
+        // Do any additional setup after loading the view.
+    }
+    func setupView() {
+         // 6. add blur view and send it to back
+         view.addSubview(blurredView)
+         view.sendSubviewToBack(blurredView)
+       
+     }
+     
+    @IBAction func onClickApply(_ sender: UIButton) {
+      //  navigationController?.popViewController(animated: false)
+        dismiss(animated: false) {
+            self.onDismiss?()
+        }
+    }
+    
+    @IBAction func onClickClearAll(_ sender: UIButton) {
+        
     }
 }
+
+RangeUISlider
