@@ -1,0 +1,86 @@
+homwvc viewdidload
+let locationManager = CLLocationManager()
+var currentUserLocation: CLLocation?
+
+override func viewDidLoad() {
+    super.viewDidLoad()
+    // other setup...
+    locationManager.delegate = self
+    locationManager.requestWhenInUseAuthorization()
+    locationManager.startUpdatingLocation()
+}
+func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+    guard let location = locations.last else { return }
+    currentUserLocation = location
+    locationManager.stopUpdatingLocation()
+}
+
+func didApplyFilter(_ filter: DataFilter) {
+    guard let currentLocation = currentUserLocation else {
+        print("Current location not available yet")
+        return
+    }
+
+    filterUser = arrUser.filter { user in
+        // Age and gender check
+        let ageMatch = user.age! >= filter.minAge && user.age! <= filter.maxAge
+        let genderMatch = user.gender == filter.gender
+
+        // Location check
+        if let locDict = user.location,
+           let lat = locDict["lat"] as? Double,
+           let lon = locDict["long"] as? Double {
+
+            let userLocation = CLLocation(latitude: lat, longitude: lon)
+            let distance = currentLocation.distance(from: userLocation) / 1000 // in KM
+
+            print("Distance to user: \(distance) km")
+
+            return ageMatch && genderMatch && distance <= filter.maxDistance
+        }
+
+        return false // skip if no location
+    }
+
+    cvStory.reloadData()
+    loadContainerViews()
+    kolodaVIew.reloadData()
+}
+
+
+/filterVC
+
+func resetContent() {
+    guard let userData = arrDisplayImageViewDetail else { return }
+
+    swipeImage.sd_setImage(with: URL(string: userData.profilePic ?? ""))
+    lblName.text = "\(userData.name ?? ""), "
+    lblAge.text = "\(userData.age ?? "NA")"
+    lblCity.text = "\(userData.location["city"] ?? "Unknown")"
+
+    // Distance calculation
+    if let locationDict = UserDefaults.standard.dictionary(forKey: "Location"),
+       let userLat = locationDict["lat"] as? Double,
+       let userLong = locationDict["long"] as? Double {
+
+        let loggedInLocation = CLLocation(latitude: userLat, longitude: userLong)
+
+        if let lat = userData.location["lat"] as? Double,
+           let lon = userData.location["long"] as? Double {
+
+            let otherUserLocation = CLLocation(latitude: lat, longitude: lon)
+
+            let distanceInMeters = loggedInLocation.distance(from: otherUserLocation)
+            let distanceInKM = distanceInMeters / 1000
+
+            lblDistance.text = String(format: "%.1f km away", distanceInKM)
+        } else {
+            lblDistance.text = "Distance unknown"
+        }
+    } else {
+        lblDistance.text = "My location unknown"
+    }
+}
+
+
+//in age change type int from string
