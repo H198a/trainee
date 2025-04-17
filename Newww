@@ -1,0 +1,141 @@
+import UIKit
+import RangeSeekSlider
+
+class FilterViewController: UIViewController {
+
+    @IBOutlet weak var ageSlider: RangeSeekSlider!
+    @IBOutlet weak var distanceSlider: RangeSeekSlider!
+    @IBOutlet weak var maleButton: UIButton!
+    @IBOutlet weak var femaleButton: UIButton!
+    @IBOutlet weak var allButton: UIButton!
+
+    weak var delegate: FilterDelegate?
+
+    var selectedGender: String = "All"
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        allButtonTapped(allButton)
+    }
+
+    @IBAction func maleButtonTapped(_ sender: UIButton) {
+        selectedGender = "Male"
+        updateGenderButtons()
+    }
+
+    @IBAction func femaleButtonTapped(_ sender: UIButton) {
+        selectedGender = "Female"
+        updateGenderButtons()
+    }
+
+    @IBAction func allButtonTapped(_ sender: UIButton) {
+        selectedGender = "All"
+        updateGenderButtons()
+    }
+
+    func updateGenderButtons() {
+        let selectedColor = UIColor.systemBlue
+        let normalColor = UIColor.systemGray
+
+        maleButton.backgroundColor = selectedGender == "Male" ? selectedColor : normalColor
+        femaleButton.backgroundColor = selectedGender == "Female" ? selectedColor : normalColor
+        allButton.backgroundColor = selectedGender == "All" ? selectedColor : normalColor
+    }
+
+    @IBAction func applyFilterTapped(_ sender: UIButton) {
+        let filter = FilterData(
+            minAge: Int(ageSlider.selectedMinValue),
+            maxAge: Int(ageSlider.selectedMaxValue),
+            gender: selectedGender,
+            maxDistance: distanceSlider.selectedMaxValue
+        )
+        delegate?.didApplyFilter(filter)
+        navigationController?.popViewController(animated: true)
+    }
+}
+
+
+import UIKit
+import Firebase
+import CoreLocation
+
+class HomeViewController: UIViewController {
+
+    @IBOutlet weak var tableView: UITableView!
+
+    var allUsers: [User] = []
+    var filteredUsers: [User] = []
+
+    var currentUserLocation: CLLocation?
+
+    let locationManager = CLLocationManager()
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        tableView.dataSource = self
+        locationManager.delegate = self
+        locationManager.requestWhenInUseAuthorization()
+        locationManager.startUpdatingLocation()
+        fetchUsers()
+    }
+
+    func fetchUsers() {
+        Database.database().reference().child("users").observeSingleEvent(of: .value) { snapshot in
+            var users: [User] = []
+            for child in snapshot.children {
+                if let snap = child as? DataSnapshot,
+                   let dict = snap.value as? [String: Any],
+                   let user = User(dict: dict, uid: snap.key) {
+                    users.append(user)
+                }
+            }
+            self.allUsers = users
+            self.filteredUsers = users
+            self.tableView.reloadData()
+        }
+    }
+
+    override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
+        if let filterVC = segue.destination as? FilterViewController {
+            filterVC.delegate = self
+        }
+    }
+}
+
+extension HomeViewController: UITableViewDataSource {
+    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+        return filteredUsers.count
+    }
+
+    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        let user = filteredUsers[indexPath.row]
+        let cell = tableView.dequeueReusableCell(withIdentifier: "UserCell", for: indexPath)
+        cell.textLabel?.text = "\(user.name), \(user.age)"
+        cell.detailTextLabel?.text = "\(user.gender) - \(user.location)"
+        return cell
+    }
+}
+
+extension HomeViewController: FilterDelegate {
+    func didApplyFilter(_ filter: FilterData) {
+        guard let currentLocation = currentUserLocation else { return }
+
+        filteredUsers = allUsers.filter { user in
+            let ageMatch = user.age >= filter.minAge && user.age <= filter.maxAge
+            let genderMatch = filter.gender == "All" || user.gender == filter.gender
+
+            let userLocation = CLLocation(latitude: user.latitude, longitude: user.longitude)
+            let distance = currentLocation.distance(from: userLocation) / 1000 // in KM
+
+            return ageMatch && genderMatch && distance <= filter.maxDistance
+        }
+        tableView.reloadData()
+    }
+}
+
+extension HomeViewController: CLLocationManagerDelegate {
+    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        currentUserLocation = locations.last
+    }
+}
+
