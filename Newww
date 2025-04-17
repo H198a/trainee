@@ -139,3 +139,15 @@ extension HomeViewController: CLLocationManagerDelegate {
     }
 }
 
+
+struct FilterData {
+    var minAge: Int
+    var maxAge: Int
+    var gender: String // "All", "Male", "Female"
+    var maxDistance: Double
+}
+
+
+protocol FilterDelegate: AnyObject {
+    func didApplyFilter(_ filter: FilterData)
+}
