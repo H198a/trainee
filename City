@@ -1,0 +1,29 @@
+hclass MainVC: UIViewController, CLLocationManagerDelegate {
+
+    let locationManager = CLLocationManager()
+    var currentCity: String?
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        getLocation()
+    }
+
+    func getLocation() {
+        locationManager.delegate = self
+        locationManager.requestWhenInUseAuthorization()
+        locationManager.startUpdatingLocation()
+    }
+
+    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        guard let location = locations.first else { return }
+
+        let geocoder = CLGeocoder()
+        geocoder.reverseGeocodeLocation(location) { placemarks, error in
+            if let placemark = placemarks?.first {
+                self.currentCity = placemark.locality
+                print("Current City: \(self.currentCity ?? "")")
+            }
+        }
+        locationManager.stopUpdatingLocation()
+    }
+}
