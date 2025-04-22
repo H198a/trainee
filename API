@@ -130,3 +130,60 @@ struct APIUrls {
 //call api in viewmodel instead of whole api call this
  let url = APIS.getPost
 
+class UserViewModel {
+    var users: [[String: Any]] = []
+
+    // Existing fetchUsers...
+
+    func appendUser(_ newUser: [String: Any]) {
+        users.append(newUser)
+    }
+
+    func updateUser(at index: Int, with updatedUser: [String: Any]) {
+        guard index < users.count else { return }
+        users[index] = updatedUser
+    }
+
+    func userName(at index: Int) -> String {
+        return users[index]["title"] as? String ?? "No Name"
+    }
+
+    func userEmail(at index: Int) -> String {
+        return users[index]["body"] as? String ?? "No Email"
+    }
+
+    func userCount() -> Int {
+        return users.count
+    }
+
+    func getUser(at index: Int) -> [String: Any]? {
+        guard index < users.count else { return nil }
+        return users[index]
+    }
+}
+
+let newPost: [String: Any] = [
+    "title": "New Post Title",
+    "body": "This is the body of the new post."
+]
+
+
+let updatedPost: [String: Any] = [
+    "title": "Updated Title",
+    "body": "Updated body content."
+]
+
+arrUser.updateUser(at: indexPath.row, with: updatedPost)
+tblView.reloadRows(at: [indexPath], with: .automatic)
+
+
+let updatedPost: [String: Any] = [
+    "title": "Updated Title",
+    "body": "Updated body content."
+]
+
+arrUser.updateUser(at: indexPath.row, with: updatedPost)
+tblView.reloadRows(at: [indexPath], with: .automatic)
+
+arrUser.appendUser(newPost)
+tblView.insertRows(at: [IndexPath(row: arrUser.userCount() - 1, section: 0)], with: .automatic)
