@@ -1,0 +1,417 @@
+import UIKit
+
+class CommentVC: UIViewController {
+    @IBOutlet weak var tblView: UITableView!
+    @IBOutlet weak var lblName: UILabel!
+    @IBOutlet weak var lblHead: UILabel!
+    @IBOutlet weak var lblDesc: UILabel!
+    @IBOutlet weak var mainImg: UIImageView!
+    @IBOutlet weak var mainView: UIView!
+    @IBOutlet weak var txtAddComment: UITextField!
+    
+    var titleText: String?
+    var bodyText: String?
+    var userName: String?
+    var imageName: String?
+    var userModel = UserViewModel()
+    var arrImg = ["Frame 52","fi-rr-arrow-small-left 1","Jessica","Frame 52","fi-rr-arrow-small-left 1","Jessica","Frame 52","fi-rr-arrow-small-left 1","Frame 52","Jessica"]
+        
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        let nibName = UINib(nibName: "CommentCell", bundle: nil)
+        tblView.register(nibName, forCellReuseIdentifier: "CommentCell")
+        loadUsers()
+        getData()
+        // Do any additional setup after loading the view.
+    }
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        navigationController?.setNavigationBarHidden(true, animated: true)
+    }
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        navigationController?.setNavigationBarHidden(true, animated: true)
+    }
+    @IBAction func btnBack(_ sender: Any) {
+        navigationController?.popViewController(animated: true)
+    }
+    func loadUsers() {
+        userModel.commentPost {
+            DispatchQueue.main.async {
+                self.tblView.reloadData()
+            }
+        }
+    }
+    func getData(){
+        lblName.text = userName
+        lblHead.text = titleText
+        lblDesc.text = bodyText
+        mainImg.image = UIImage(named: imageName ?? "India")
+    }
+}
+//MA
+extension CommentVC: UITableViewDelegate, UITableViewDataSource{
+    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+        return userModel.userCount()
+    }
+    
+    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        let cell = tableView.dequeueReusableCell(withIdentifier: "CommentCell", for: indexPath) as! CommentCell
+        cell.lblName?.text = userModel.email(at: indexPath.row)
+        cell.lblDesc?.text = userModel.body(at: indexPath.row)
+        cell.lblHead?.text = userModel.name(at: indexPath.row)
+        cell.lblName.font = .setFont(type: .Bold, size: 16)
+        cell.lblHead.font = .setFont(type: .Bold, size: 16)
+        let randomIndex = Int.random(in: 0..<arrImg.count)
+        cell.mainImg.image = UIImage(named: arrImg[randomIndex])
+        return cell
+    }
+}
+import UIKit
+
+class PostVC: UIViewController {
+    @IBOutlet weak var tblView: UITableView!
+    var currentUserID: Int = 1 //  current logged-in user's ID is 1
+    var userViewModel = UserViewModel()
+    var arrName = ["John","riya","lily","test1","test2","test3","test4","test5","test6","test7"]
+    var arrImg = ["Frame 52","fi-rr-arrow-small-left 1","Jessica","Frame 52","fi-rr-arrow-small-left 1","Jessica","Frame 52","fi-rr-arrow-small-left 1","Frame 52","Jessica"]
+    
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        
+        let nibName = UINib(nibName: "CartCell", bundle: nil)
+        tblView.register(nibName, forCellReuseIdentifier: "CartCell")
+        loadUsers()
+        // Do any additional setup after loading the view.
+        
+    }
+    
+    @IBAction func btnAddUser(_ sender: UIButton) {
+        let otpVC = storyboard?.instantiateViewController(withIdentifier: "AddAndEditPostVC") as! AddAndEditPostVC
+        otpVC.isSelected = false
+        otpVC.currentUserId = self.currentUserID
+        otpVC.completionHandler = { newPost in
+                // Append to data source if API returns the new post
+                self.userViewModel.users.insert(newPost, at: 0)
+                self.tblView.reloadData()
+            }
+        navigationController?.pushViewController(otpVC, animated: false)
+    }
+    
+    func loadUsers() {
+        userViewModel.fetchUsers {
+            DispatchQueue.main.async {
+                self.tblView.reloadData()
+            }
+        }
+    }
+    @objc func editBtn(sender: UIButton) {
+         // get the indexpath of the row whose button called this function
+        let indexPath = editButton(sender, in: tblView)
+        let post = userViewModel.users[indexPath!.row]
+        let otpVC = storyboard?.instantiateViewController(withIdentifier: "AddAndEditPostVC") as! AddAndEditPostVC
+        otpVC.currentUserId = self.currentUserID
+        otpVC.existingPost = post//get the selected nutton indexpath for edit particular user
+        otpVC.isSelected = true
+        otpVC.completionHandler = { updatedPost in
+            if let id = updatedPost["id"] as? Int {
+                // Editing: replace the existing post
+                if let index = self.userViewModel.users.firstIndex(where: { ($0["id"] as? Int) == id }) {
+                    self.userViewModel.users[index] = updatedPost
+                }
+            } else {
+                // Adding: append new post
+                print("error in updating data")
+//                self.userViewModel.users.insert(updatedPost, at: 0) // Or .append(updatedPost)
+            }
+            self.tblView.reloadData()
+        }
+
+        navigationController?.pushViewController(otpVC, animated: false)
+    }
+    @objc func commentBtn(sender: UIButton) {
+        guard let indexPath = editButton(sender, in: tblView) else { return }
+
+        let selectedUser = userViewModel.users[indexPath.row]
+        let fixedIndex = indexPath.row % arrName.count
+
+        let commentVC = storyboard?.instantiateViewController(withIdentifier: "CommentVC") as! CommentVC
+
+        // Pass data
+        commentVC.titleText = selectedUser["title"] as? String ?? ""
+        commentVC.bodyText = selectedUser["body"] as? String ?? ""
+        commentVC.userName = arrName[fixedIndex]
+        commentVC.imageName = arrImg[fixedIndex]
+
+        navigationController?.pushViewController(commentVC, animated: true)
+    }
+
+    func editButton(_ button: UIButton, in tableView: UITableView) -> IndexPath? {
+        let buttonPosition = button.convert(CGPoint.zero, to: tableView)
+        return tableView.indexPathForRow(at: buttonPosition)
+    }
+    
+}
+extension PostVC: UITableViewDelegate, UITableViewDataSource{
+    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+        return userViewModel.userCount()
+    }
+    
+    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        let cell = tableView.dequeueReusableCell(withIdentifier: "CartCell", for: indexPath) as! CartCell
+        let userID = userViewModel.users[indexPath.row]["userId"] as? Int ?? -1
+        cell.lblHead?.text = userViewModel.userName(at: indexPath.row)
+        cell.lblDesc?.text = userViewModel.userEmail(at: indexPath.row)
+        
+        let fixedIndex = indexPath.row % arrName.count
+        cell.lblName.text = arrName[fixedIndex]
+        cell.mainImg.image = UIImage(named: arrImg[fixedIndex])
+        
+        cell.btnEdit.isHidden = userID != currentUserID//check for same id in edit post
+        cell.btnDelete.isHidden = userID != currentUserID//check for same id in delete post
+        //onClick navigation
+        cell.btnEdit.addTarget(self, action: #selector(editBtn), for: .touchUpInside)
+        cell.btnComment.addTarget(self, action: #selector(commentBtn), for: .touchUpInside)
+        
+        return cell
+    }
+   
+
+}
+import UIKit
+
+class AddAndEditPostVC: UIViewController {
+    @IBOutlet weak var btnAddandEdit: UIButton!
+    @IBOutlet weak var txtTitle: UITextField!
+    @IBOutlet weak var txtDesc: UITextView!
+    @IBOutlet weak var lblAddAndEdit: UILabel!
+    
+    var isSelected = false
+    var existingPost: [String: Any]? // if editing
+    var completionHandler: (([String: Any]) -> Void)?
+ // callback after add/edit
+    var currentUserId: Int?
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        setUP()
+        checkAddOrEdit()
+        // Do any additional setup after loading the view.
+    }
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        navigationController?.setNavigationBarHidden(true, animated: true)
+    }
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        navigationController?.setNavigationBarHidden(true, animated: true)
+    }
+    
+    @IBAction func backBtn(_ sender: UIButton) {
+        navigationController?.popViewController(animated: true)
+    }
+    
+    @IBAction func addBtn(_ sender: Any) {
+        guard let title = txtTitle.text, !title.isEmpty,
+              let body = txtDesc.text, body != "What do you want to say?" else {
+            showAlert(message: "Please enter all fields")
+            return // show alert maybe
+        }
+        let param: [String: Any] = [
+            "title": title,
+            "body": body,
+            "userId": currentUserId!
+        ]
+        //edit
+        if isSelected, let post = existingPost, let id = post["id"] as? Int {
+            let url = "\(APIS.getPost)/\(id)"
+            APIManager.shared.request(url: url, method: .put, parameters: param) { result in
+                switch result{
+                case .success(let response):
+                    if let updatedPost = response as? [String: Any] {
+                        self.completionHandler?(updatedPost)
+                    }
+                    self.navigationController?.popViewController(animated: true)
+
+                case .failure(let error):
+                    print("edit error in UserViewModel:", error)
+                }
+            }
+            //add
+        } else{
+            let url = APIS.getPost
+            APIManager.shared.request(url: url, method: .post,parameters: param) { result in
+                switch result{
+                case .success(let response):
+                    if let newPost = response as? [String: Any] {
+                        self.completionHandler?(newPost)
+                    }
+                    self.navigationController?.popViewController(animated: true)
+
+                case .failure(let error):
+                    print("add error in UserViewModel:", error)
+                }
+            }
+        }
+    }
+}
+//MARK: SetUp UI
+extension AddAndEditPostVC{
+    func setUP(){
+        lblAddAndEdit.font = .setFont(type: .Bold, size: 24)
+        txtTitle.becomeFirstResponder()
+        txtTitle.font = .setFont(type: .Regular, size: 18)
+        
+
+        txtDesc.text = "What do you want to say?"
+        txtDesc.delegate = self
+        txtDesc.textColor = .lightGray
+//        txtDesc.becomeFirstResponder()
+        txtDesc.font = .setFont(type: .Regular, size: 18)
+        txtDesc.selectedTextRange = txtDesc.textRange(from: txtDesc.beginningOfDocument, to: txtDesc.beginningOfDocument)// textview editing start from behinning
+    }
+}
+//MARK: Custom Functions
+extension AddAndEditPostVC{
+    func checkAddOrEdit(){
+        if let post = existingPost{
+            txtTitle.text = post["title"] as? String
+            txtDesc.textColor = .black//change color from gray to black in edit post
+            txtDesc.text = post["body"] as? String
+            lblAddAndEdit.text = "Edit Post"
+            btnAddandEdit.setTitle("Edit", for: .normal)
+            isSelected = true
+        } else{
+            lblAddAndEdit.text = "Add Post"
+            btnAddandEdit.setTitle("Add", for: .normal)
+        }
+    }
+    func validateFields() -> Bool {
+        var isValid = true
+            
+        // Validate Name
+        if let number = txtDesc.text, number.isEmpty {
+            showAlert(message: "Please enter Description")
+            isValid = false
+        }
+        if let title = txtTitle.text , title.isEmpty{
+            showAlert(message: "Please enter Title")
+            isValid = false
+        }
+        return isValid
+    }
+    func showAlert(message: String) {
+        let alert = UIAlertController(title: "Error", message: message, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "OK", style: .default, handler: nil))
+        present(alert, animated: true, completion: nil)
+    }
+}
+//MARK: UITextViewDelegate
+extension AddAndEditPostVC: UITextViewDelegate {
+    func textView(_ textView: UITextView, shouldChangeTextIn range: NSRange, replacementText text: String) -> Bool {
+            let currentText:String = textView.text
+            let updatedText = (currentText as NSString).replacingCharacters(in: range, with: text)
+            if updatedText.isEmpty {
+
+                textView.text = "What do you want to say?"
+                textView.textColor = UIColor.lightGray
+
+                textView.selectedTextRange = textView.textRange(from: textView.beginningOfDocument, to: textView.beginningOfDocument)
+            }
+        else if textView.textColor == UIColor.lightGray && !text.isEmpty {
+                textView.textColor = UIColor.black
+                textView.text = text
+            }
+
+            else {
+                return true
+            }
+     
+        return false
+    }
+    func textViewDidChangeSelection(_ textView: UITextView) {
+        if self.view.window != nil {
+            if textView.textColor == UIColor.lightGray {
+                textView.selectedTextRange = textView.textRange(from: textView.beginningOfDocument, to: textView.beginningOfDocument)
+            }
+        }
+    }
+}
+//MARK: Center Horizontally TextView Text
+extension UITextView {
+    func centerText() {
+        self.textAlignment = .center
+        let fittingSize = CGSize(width: bounds.width, height: CGFloat.greatestFiniteMagnitude)
+        let size = sizeThatFits(fittingSize)
+        let topOffset = (bounds.size.height - size.height * zoomScale) / 2
+        let positiveTopOffset = max(1, topOffset)
+        contentOffset.y = -positiveTopOffset
+    }
+}
+import Foundation
+
+class UserViewModel {
+    var users: [[String: Any]] = []
+    
+    func fetchUsers(completion: @escaping () -> Void) {
+        let url = APIS.getPost
+        
+        APIManager.shared.request(url: url, method: .get) { result in
+            switch result {
+            case .success(let value):
+                if let dataArray = value as? [[String: Any]] {
+                    self.users = dataArray
+                } else if let wrapped = value as? [String: Any],
+                          let dataArray = wrapped["data"] as? [[String: Any]] {
+                    self.users = dataArray
+                }
+                completion()
+            case .failure(let error):
+                print("Error in ViewModel:", error)
+                completion()
+            }
+        }
+    }
+    func commentPost(completion: @escaping () -> Void){
+        let url = APIS.commentUrl
+        
+        APIManager.shared.request(url: url, method: .get) { result in
+            switch result{
+            case .success(let value):
+                if let dataArray = value as? [[String: Any]]{
+                    self.users = dataArray
+                } else if let wrapped = value as? [String: Any],
+                          let dataArray = wrapped["data"] as? [[String: Any]] {
+                    self.users = dataArray
+                }
+                completion()
+            case .failure(let error):
+                print("Error in ViewModel:", error)
+                completion()
+            }
+        }
+    }
+    func email(at index: Int) -> String{
+        return users[index]["email"] as? String ?? "no email"
+    }
+    
+    func name(at index: Int) -> String{
+        return users[index]["name"] as? String ?? "no email"
+    }
+    
+    func body(at index: Int) -> String{
+        return users[index]["body"] as? String ?? "no email"
+    }
+    
+    func userName(at index: Int) -> String {
+        return users[index]["title"] as? String ?? "No Name"
+    }
+    
+    func userEmail(at index: Int) -> String {
+        return users[index]["body"] as? String ?? "No Email"
+    }
+    
+    func userCount() -> Int {
+        return users.count
+    }
+}
+
