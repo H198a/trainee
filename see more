@@ -1,0 +1,148 @@
+
+import UIKit
+import ExpandableLabel
+
+class PostVC: UIViewController {
+    @IBOutlet weak var tblView: UITableView!
+    var currentUserID: Int = 1 //  current logged-in user's ID is 1
+    var userViewModel = UserViewModel()
+    var arrName = ["John","riya","lily","test1","test2","test3","test4","test5","test6","test7"]
+    var arrImg = ["Frame 52","fi-rr-arrow-small-left 1","Jessica","Frame 52","fi-rr-arrow-small-left 1","Jessica","Frame 52","fi-rr-arrow-small-left 1","Frame 52","Jessica"]
+    
+    
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        
+        let nibName = UINib(nibName: "CartCell", bundle: nil)
+        tblView.register(nibName, forCellReuseIdentifier: "CartCell")
+        tblView.estimatedRowHeight = 100
+        tblView.rowHeight = UITableView.automaticDimension
+
+        loadUsers()
+        // Do any additional setup after loading the view.
+        
+    }
+    
+    @IBAction func btnAddUser(_ sender: UIButton) {
+        let otpVC = storyboard?.instantiateViewController(withIdentifier: "AddAndEditPostVC") as! AddAndEditPostVC
+        otpVC.isSelected = false
+        otpVC.currentUserId = self.currentUserID
+        otpVC.completionHandler = { newPost in
+                // Append to data source if API returns the new post
+                self.userViewModel.users.insert(newPost, at: 0)
+                self.tblView.reloadData()
+            }
+        navigationController?.pushViewController(otpVC, animated: false)
+    }
+    
+    func loadUsers() {
+        userViewModel.fetchUsers {
+            DispatchQueue.main.async {
+                self.tblView.reloadData()
+            }
+        }
+    }
+    @objc func editBtn(sender: UIButton) {
+         // get the indexpath of the row whose button called this function
+        let indexPath = editButton(sender, in: tblView)
+        let post = userViewModel.users[indexPath!.row]
+        let otpVC = storyboard?.instantiateViewController(withIdentifier: "AddAndEditPostVC") as! AddAndEditPostVC
+        otpVC.currentUserId = self.currentUserID
+        otpVC.existingPost = post//get the selected nutton indexpath for edit particular user
+        otpVC.isSelected = true
+        otpVC.completionHandler = { updatedPost in
+            if let id = updatedPost["id"] as? Int {
+                // Editing: replace the existing post
+                if let index = self.userViewModel.users.firstIndex(where: { ($0["id"] as? Int) == id }) {
+                    self.userViewModel.users[index] = updatedPost
+                }
+            } else {
+                // Adding: append new post
+                print("error in updating data")
+//                self.userViewModel.users.insert(updatedPost, at: 0) // Or .append(updatedPost)
+            }
+            self.tblView.reloadData()
+        }
+
+        navigationController?.pushViewController(otpVC, animated: false)
+    }
+    @objc func commentBtn(sender: UIButton) {
+        guard let indexPath = editButton(sender, in: tblView) else { return }
+
+        let selectedUser = userViewModel.users[indexPath.row]
+        let fixedIndex = indexPath.row % arrName.count
+
+        let commentVC = storyboard?.instantiateViewController(withIdentifier: "CommentVC") as! CommentVC
+
+        // Pass data
+        commentVC.titleText = selectedUser["title"] as? String ?? ""
+        commentVC.bodyText = selectedUser["body"] as? String ?? ""
+        commentVC.userName = arrName[fixedIndex]
+        commentVC.imageName = arrImg[fixedIndex]
+
+        navigationController?.pushViewController(commentVC, animated: true)
+    }
+
+    func editButton(_ button: UIButton, in tableView: UITableView) -> IndexPath? {
+        let buttonPosition = button.convert(CGPoint.zero, to: tableView)
+        return tableView.indexPathForRow(at: buttonPosition)
+    }
+    
+}
+extension PostVC: UITableViewDelegate, UITableViewDataSource{
+    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+        return userViewModel.userCount()
+    }
+    
+    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        let cell = tableView.dequeueReusableCell(withIdentifier: "CartCell", for: indexPath) as! CartCell
+        let userID = userViewModel.users[indexPath.row]["userId"] as? Int ?? -1
+        cell.lblHead?.text = userViewModel.userName(at: indexPath.row)
+        //        cell.lblDesc?.text = userViewModel.userEmail(at: indexPath.row)
+        cell.lblDesc.font = .setFont(type: .Bold, size: 16)
+        let fixedIndex = indexPath.row % arrName.count
+        cell.lblName.text = arrName[fixedIndex]
+        cell.mainImg.image = UIImage(named: arrImg[fixedIndex])
+        
+        cell.btnEdit.isHidden = userID != currentUserID//check for same id in edit post
+        cell.btnDelete.isHidden = userID != currentUserID//check for same id in delete post
+        
+        cell.lblDesc.delegate = self
+        cell.lblDesc.numberOfLines = 2
+        cell.lblDesc.shouldCollapse = true
+        cell.lblDesc.textReplacementType = .word
+        cell.lblDesc.collapsedAttributedLink = NSAttributedString(string: "..See More", attributes: [.foregroundColor: UIColor.systemBlue])
+        cell.lblDesc.expandedAttributedLink = NSAttributedString(string: " See Less", attributes: [.foregroundColor: UIColor.systemBlue])
+//        cell.lblDesc.layoutIfNeeded() // Ensure it has a proper frame
+        DispatchQueue.main.async {
+            cell.lblDesc.text = self.userViewModel.userEmail(at: indexPath.row)
+            cell.lblDesc.sizeToFit()
+        }
+
+        cell.btnEdit.addTarget(self, action: #selector(editBtn), for: .touchUpInside)
+        cell.btnComment.addTarget(self, action: #selector(commentBtn), for: .touchUpInside)
+        
+        return cell
+    }
+    // Optional: Implement estimatedHeightForRowAt for better performance
+       func tableView(_ tableView: UITableView, estimatedHeightForRowAt indexPath: IndexPath) -> CGFloat {
+           return 60 // Provide a reasonable estimate
+       }
+}
+extension PostVC: ExpandableLabelDelegate {
+    func willExpandLabel(_ label: ExpandableLabel) {
+        tblView.beginUpdates()
+    }
+
+    func didExpandLabel(_ label: ExpandableLabel) {
+        tblView.endUpdates()
+    }
+
+    func willCollapseLabel(_ label: ExpandableLabel) {
+        tblView.beginUpdates()
+    }
+
+    func didCollapseLabel(_ label: ExpandableLabel) {
+        tblView.endUpdates()
+    }
+}
