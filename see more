@@ -146,3 +146,197 @@ dfsdfdsfs
         tblView.endUpdates()
     }
 }
+
+
+
+
+
+
+
+
+import UIKit
+import Alamofire
+
+class AddAndEditPostVC: UIViewController{
+//MARK: Outlet and Variable Declaration
+    @IBOutlet weak var btnAddandEdit: UIButton!
+    @IBOutlet weak var txtTitle: UITextField!
+    @IBOutlet weak var txtDesc: UITextView!
+    @IBOutlet weak var lblAddAndEdit: UILabel!
+    
+    var isSelected = false
+    var existingPost: PostsDataModel? // if editing
+    var completionHandler: ((PostsDataModel) -> Void)?//(([String: Any]) -> Void)? // callback after add/edit
+    var currentUserId: Int?
+//    var viewModel = UserViewModel()
+    var newUserViewModel = CommentUserViewModel()
+    var newId: PostsDataModel?
+    
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        setUP()
+        checkAddOrEdit()
+        // Do any additional setup after loading the view.
+    }
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        navigationController?.setNavigationBarHidden(true, animated: true)
+    }
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        navigationController?.setNavigationBarHidden(true, animated: true)
+    }  
+}
+//MARK: SetUp UI
+extension AddAndEditPostVC{
+    func setUP(){
+        lblAddAndEdit.font = .setFont(type: .Bold, size: 24)
+        txtTitle.becomeFirstResponder()
+        txtTitle.font = .setFont(type: .Regular, size: 18)
+        
+
+        txtDesc.text = "What do you want to say?"
+        txtDesc.delegate = self
+        txtDesc.textColor = .lightGray
+//        txtDesc.becomeFirstResponder()
+        txtDesc.font = .setFont(type: .Regular, size: 18)
+        txtDesc.selectedTextRange = txtDesc.textRange(from: txtDesc.beginningOfDocument, to: txtDesc.beginningOfDocument)// textview editing start from behinning
+    }
+}
+//MARK: Custom Functions
+extension AddAndEditPostVC{
+    func checkAddOrEdit(){
+        if let post = existingPost{
+            txtTitle.text = post.title
+            txtDesc.textColor = .black//change color from gray to black in edit post
+            txtDesc.text = post.body
+            lblAddAndEdit.text = "Edit Post"
+            btnAddandEdit.setTitle("Edit", for: .normal)
+            isSelected = true
+        } else{
+            lblAddAndEdit.text = "Add Post"
+            btnAddandEdit.setTitle("Add", for: .normal)
+        }
+    }
+    func validateFields() -> Bool {
+        var isValid = true
+            
+        // Validate Name
+        if let number = txtDesc.text, number.isEmpty {
+            showAlert(message: "Please enter Description")
+            isValid = false
+        }
+        if let title = txtTitle.text , title.isEmpty{
+            showAlert(message: "Please enter Title")
+            isValid = false
+        }
+        return isValid
+    }
+    func showAlert(message: String) {
+        let alert = UIAlertController(title: "Error", message: message, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "OK", style: .default, handler: nil))
+        present(alert, animated: true, completion: nil)
+    }
+}
+//MARK: UITextViewDelegate
+extension AddAndEditPostVC: UITextViewDelegate {
+    func textView(_ textView: UITextView, shouldChangeTextIn range: NSRange, replacementText text: String) -> Bool {
+
+            let currentText:String = textView.text
+            let updatedText = (currentText as NSString).replacingCharacters(in: range, with: text)
+            if updatedText.isEmpty {
+
+                textView.text = "What do you want to say?"
+                textView.textColor = UIColor.lightGray
+
+                textView.selectedTextRange = textView.textRange(from: textView.beginningOfDocument, to: textView.beginningOfDocument)
+            }
+        else if textView.textColor == UIColor.lightGray && !text.isEmpty {
+                textView.textColor = UIColor.black
+                textView.text = text
+            }
+
+            // For every other case, the text should change with the usual
+            // behavior...
+            else {
+                return true
+            }
+        
+        // ...otherwise return false since the updates have already
+        // been made
+        return false
+    }
+    func textViewDidChangeSelection(_ textView: UITextView) {
+        if self.view.window != nil {
+            if textView.textColor == UIColor.lightGray {
+                textView.selectedTextRange = textView.textRange(from: textView.beginningOfDocument, to: textView.beginningOfDocument)
+            }
+        }
+    }
+}
+//MARK: Center Horizontally TextView Text
+extension UITextView {
+    func centerText() {
+        self.textAlignment = .center
+        let fittingSize = CGSize(width: bounds.width, height: CGFloat.greatestFiniteMagnitude)
+        let size = sizeThatFits(fittingSize)
+        let topOffset = (bounds.size.height - size.height * zoomScale) / 2
+        let positiveTopOffset = max(1, topOffset)
+        contentOffset.y = -positiveTopOffset
+    }
+}
+//MARK: Click Events
+extension AddAndEditPostVC{
+    @IBAction func onClickBack(_ sender: Any) {
+        navigationController?.popViewController(animated: true)
+    }
+    
+    @IBAction func onClickAddAndEditPost(_ sender: Any) {
+       
+        if validateFields(){
+            guard let title = txtTitle.text, !title.isEmpty else { return }
+            guard let body = txtDesc.text, body != "What do you want to say?" else { return }
+            let id = existingPost?.id
+            print("id is:-----------------",id!)
+//            let iid =
+            
+            let param: [String: Any] = [
+                "title": title,
+                "body": body,
+                "userId": currentUserId!
+            ]
+            //edit
+            if isSelected {
+                let url = "\(APIUrls.postUrl)/\(id!)"
+                AF.request(url, method: .put, parameters: param).response { result in
+                    switch result{
+                    case .success(let response):
+                        if let updatedPost = response as? PostsDataModel {
+                            print("updatePost",updatedPost)
+                            self.completionHandler?(updatedPost)
+                        }
+                        self.navigationController?.popViewController(animated: true)
+                    case .failure(let error):
+                        print("edit error in UserViewModel:", error)
+                    }
+                }
+            } else{
+                let url = APIUrls.postUrl
+                APIManager.shared.request(url: url, method: .post,parameters: param) { result in
+                    switch result{
+                    case .success(let response):
+                        if let newPost = response as? PostsDataModel {
+                            self.completionHandler?(newPost)
+                        } else{
+                            self.showAlert(message: "error in updating data")
+                        }
+                        self.navigationController?.popViewController(animated: true)
+                    case .failure(let error):
+                        print("add error in UserViewModel:", error)
+                    }
+                }
+            }
+        }
+    }
+}
+
