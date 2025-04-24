@@ -1,0 +1,93 @@
+
+import UIKit
+
+class EditVC: UIViewController {
+    @IBOutlet weak var imgEdit: UIImageView!
+    @IBOutlet weak var tblView: UITableView!
+    var selectedImage: UIImage?
+    var originalImage: UIImage?
+    
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        tblView.isHidden = true
+        imgEdit.image = selectedImage
+        originalImage = imgEdit.image // Save original at load
+        // Do any additional setup after loading the view.
+        let nibName = UINib(nibName: "FilterCell", bundle: nil)
+        tblView.register(nibName, forCellReuseIdentifier: "FilterCell")
+    }
+    
+    
+    @IBAction func onClickText(_ sender: Any) {
+    }
+    
+    
+    @IBAction func onClickEmojis(_ sender: Any) {
+    }
+    
+    @IBAction func onClickBack(_ sender: Any) {
+    }
+    
+    @IBAction func onClickFrames(_ sender: Any) {
+    }
+    
+    
+    @IBAction func onClickFilters(_ sender: Any) {
+        tblView.isHidden = true
+        
+        
+        let alert = UIAlertController(title: nil, message: nil, preferredStyle: .actionSheet)
+           // List of filter options
+        let filters: [(title: String, name: String)] = [
+               ("CIPhotoEffectTransfer", "CIPhotoEffectTransfer"),
+               ("CIPhotoEffectTonal", "CIPhotoEffectTonal"),
+               ("CIPhotoEffectProcess", "CIPhotoEffectProcess"),
+               ("CIPhotoEffectNoir", "CIPhotoEffectNoir"),
+               ("CIPhotoEffectMono", "CIPhotoEffectMono"),
+               ("CIPhotoEffectInstant", "CIPhotoEffectInstant"),
+               ("CIPhotoEffectFade", "CIPhotoEffectFade"),
+               ("CIPhotoEffectChrome", "CIPhotoEffectChrome")
+           ]
+        for filter in filters {
+               alert.addAction(UIAlertAction(title: filter.title, style: .default, handler: { _ in
+                   self.applyFilter(filterName: filter.name)
+               }))
+           }
+
+           if let popover = alert.popoverPresentationController, let button = sender as? UIView {
+               popover.sourceView = button
+               popover.sourceRect = button.bounds
+           }
+
+           present(alert, animated: true, completion: nil)
+        
+    }
+    
+    @IBAction func onClickDraw(_ sender: Any) {
+    }
+    
+     @IBAction func onClickCrop(_ sender: Any) {
+     }
+    func applyFilter(filterName: String) {
+        
+        guard let inputImage = originalImage,
+              let ciImage = CIImage(image: inputImage) else { return }
+
+        let context = CIContext(options: nil)
+        var filteredImage: CIImage?
+
+        switch filterName {
+        case "CIHueAdjust":
+            filteredImage = ciImage.applyingFilter(filterName, parameters: [kCIInputAngleKey: Double(arc4random_uniform(314)) / 100])
+        case "CISepiaTone":
+            filteredImage = ciImage.applyingFilter(filterName, parameters: [kCIInputIntensityKey: 1.0])
+        default:
+            filteredImage = ciImage.applyingFilter(filterName, parameters: [:])
+        }
+
+        if let output = filteredImage,
+           let cgImage = context.createCGImage(output, from: output.extent) {
+            imgEdit.image = UIImage(cgImage: cgImage)
+        }
+    }
+}
