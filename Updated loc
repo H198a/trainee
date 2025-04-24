@@ -63,3 +63,293 @@ class FilterVC: UIViewController {
 }
 
 RangeUISlider
+
+
+
+ import Foundation
+ import Alamofire
+ import SwiftLoader
+
+ class CommentUserViewModel {
+     static let shared = CommentUserViewModel()
+     weak var postsVC: PostVC?
+     var arrPosts = [PostsDataModel]()
+     // var arrPosts: [[String: Any]] = []
+     var dictComments: [Int: [CommentsDataModel]] = [:]
+     
+     func getUserData(){
+         SwiftLoader.show(title: "Loading...", animated: true)
+         let url = APIUrls.postUrl
+         AF.request(url, method: .get).response { response in
+             if let data = response.data{
+                 do{
+                     let userResponse = try JSONDecoder().decode([PostsDataModel].self, from: data)
+                     self.arrPosts.append(contentsOf: userResponse)//dadding data to tableview
+                     
+                     DispatchQueue.main.async{
+                         SwiftLoader.hide()
+                         self.postsVC?.postTblView.reloadData()
+                     }
+                 } catch let err{
+                     print(err.localizedDescription)
+                 }
+             }
+         }
+     }
+      func commentPost(for postId: Int, completion: @escaping () -> Void) {
+          let url = "\(APIUrls.commentUrl)?postId=\(postId)"
+          print("Fetching comments for postId:", postId)
+
+          AF.request(url).responseData { response in
+              switch response.result {
+              case .success(let data):
+                  do {
+                      let comments = try JSONDecoder().decode([CommentsDataModel].self, from: data)
+                      self.dictComments[postId] = comments
+                  } catch {
+                      print("Decoding error:", error)
+                  }
+                  completion()
+              case .failure(let error):
+                  print("API error:", error)
+                  completion()
+              }
+          }
+      }
+
+      
+     func deletePost(withId postID: Int,completion: @escaping () -> Void) {
+             // Construct the URL for the delete request (assumes API uses the ID in the URL)
+             let url = "\(APIUrls.postUrl)/\(postID)"
+     
+             // Make the DELETE request
+             APIManager.shared.request(url: url, method: .delete) { result in
+                 switch result {
+                 case .success:
+                     print("Post deleted successfully")
+                     // After successful deletion, remove the post from the data source
+                     self.arrPosts.removeAll { post in
+                         post.id == postID
+                     }
+                     completion()
+                 case .failure(let error):
+                     print("Error deleting post:", error)
+                     completion()
+                 }
+             }
+         }
+     
+     func comments(for postId: Int) ->  [CommentsDataModel] {
+             return dictComments[postId] ?? []
+         }
+ //
+     func addComment(_ comment: CommentsDataModel, for postId: Int) {
+         dictComments[postId, default: []].insert(comment, at: 0)
+     }
+ }
+
+ import UIKit
+ import SwiftLoader
+ import ExpandableLabel
+ import Alamofire
+
+ class CommentVC: UIViewController {
+ //MARK: Outlet and Variable Declaration
+     @IBOutlet weak var lblHeading: UILabel!
+     @IBOutlet weak var mainView: UIView!
+     @IBOutlet weak var lblName: UILabel!
+     @IBOutlet weak var lblTitle: UILabel!
+     @IBOutlet weak var lblDesc: UILabel!
+     @IBOutlet weak var imgUser: UIImageView!
+     @IBOutlet weak var txtCommentAdd: UITextField!
+     @IBOutlet weak var tblComment: UITableView!
+     
+     var nameAndId: [Int: String] = [:]
+     var titleText: String?
+     var bodyText: String?
+     var userName: String?
+     var imageName: String?
+ //    var userModel = UserViewModel()
+     var newUserModel = CommentUserViewModel()
+     var arrImg = ["Frame 52","fi-rr-arrow-small-left 1","Jessica","Frame 52","fi-rr-arrow-small-left 1","Jessica","Frame 52","fi-rr-arrow-small-left 1","Frame 52","Jessica"]
+     var currentUserId: Int?
+     var existingPost: CommentsDataModel?
+   
+     override func viewDidLoad() {
+         super.viewDidLoad()
+         setUP()
+ //        loadUsers()
+         getData()
+         
+         // Do any additional setup after loading the view.
+     }
+     override func viewWillAppear(_ animated: Bool) {
+         super.viewWillAppear(animated)
+ //        loadUsers()
+         navigationController?.setNavigationBarHidden(true, animated: true)
+     }
+     override func viewWillDisappear(_ animated: Bool) {
+         super.viewWillDisappear(animated)
+         navigationController?.setNavigationBarHidden(true, animated: true)
+     }
+ }
+ //MARK: Setup UI
+ extension CommentVC{
+     func setUP(){
+         lblHeading.font = .setFont(type: .Bold, size: 24)
+         lblName.font = .setFont(type: .Bold, size: 18)
+         lblTitle.font = .setFont(type: .Bold, size: 19)
+         let nibName = UINib(nibName: "CommentCell", bundle: nil)
+         tblComment.register(nibName, forCellReuseIdentifier: "CommentCell")
+     }
+ }
+ //MARK: Custom Functions
+ extension CommentVC{
+     func loadUsers() {
+         guard let postId = existingPost?.id else { return }
+
+         SwiftLoader.show(title: "Loading...", animated: true)
+         newUserModel.commentPost(for: postId) {
+             DispatchQueue.main.async {
+                 SwiftLoader.hide()
+                 self.tblComment.setContentOffset(CGPoint.zero, animated:false)
+                 self.tblComment.reloadData()
+             }
+         }
+     }
+     func getData(){
+         lblName.text = titleText//name
+         lblTitle.text =  userName
+         lblDesc.text = bodyText
+         imgUser.image = UIImage(named: imageName ?? "India")
+     }
+     func showAlert(message: String) {
+         let alert = UIAlertController(title: "Error", message: message, preferredStyle: .alert)
+         alert.addAction(UIAlertAction(title: "OK", style: .default, handler: nil))
+         present(alert, animated: true, completion: nil)
+     }
+ }
+ //MARK: UITableViewDelegate, UITableViewDataSource
+ extension CommentVC: UITableViewDelegate, UITableViewDataSource{
+     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+ //        return userModel.userCount()
+         guard let postId = existingPost?.id else { return 0 }
+         return newUserModel.comments(for: postId).count
+     }
+     
+     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        
+         guard let postId = existingPost?.id else {
+             return UITableViewCell()
+         }
+         let comments = newUserModel.comments(for: postId)
+         let comment = comments[indexPath.row]
+         let cell = tableView.dequeueReusableCell(withIdentifier: "CommentCell", for: indexPath) as! CommentCell
+         
+         cell.lblTitle.text = comment.name
+         cell.LblEmail.text = comment.email
+ //
+         cell.lblDesc.delegate = self
+         cell.lblDesc.numberOfLines = 2
+         cell.lblDesc.shouldCollapse = true
+         cell.lblDesc.textReplacementType = .word
+         cell.lblDesc.collapsedAttributedLink = NSAttributedString(string: "See More", attributes: [.foregroundColor: UIColor.systemBlue])
+         cell.lblDesc.expandedAttributedLink = NSAttributedString(string: " See Less", attributes: [.foregroundColor: UIColor.systemBlue])
+ //        cell.lblDesc.layoutIfNeeded() // Ensure it has a proper frame
+         DispatchQueue.main.async {
+             cell.lblDesc.text = comment.body
+             cell.lblDesc.sizeToFit()
+         }
+         
+         cell.lblTitle.font = .setFont(type: .Bold, size: 18)
+         cell.LblEmail.font = .setFont(type: .Bold, size: 18)
+         
+         let fixedIndex = indexPath.row % arrImg.count
+         cell.imgUser.image = UIImage(named: arrImg[fixedIndex])
+         return cell
+     }
+ }
+ //MARK: ExpandableLabelDelegate
+ extension CommentVC: ExpandableLabelDelegate{
+     func willExpandLabel(_ label: ExpandableLabel) {
+         tblComment.beginUpdates()
+     }
+
+     func didExpandLabel(_ label: ExpandableLabel) {
+         tblComment.endUpdates()
+     }
+
+     func willCollapseLabel(_ label: ExpandableLabel) {
+         tblComment.beginUpdates()
+     }
+
+     func didCollapseLabel(_ label: ExpandableLabel) {
+         tblComment.endUpdates()
+     }
+ }
+ //MARK: Click Events
+ extension CommentVC{
+     @IBAction func onClickBack(_ sender: Any) {
+         navigationController?.popViewController(animated: true)
+     }
+     @IBAction func onClickAddComment(_ sender: UIButton) {
+         guard let commentText = txtCommentAdd.text, !commentText.isEmpty else {
+             showAlert(message: "Please enter a comment")
+             return
+         }
+         
+         guard let postId = existingPost?.id else {
+             showAlert(message: "Post ID not found")
+             return
+         }
+         
+         let param: [String: Any] = [
+             "name": "\(nameAndId[currentUserId!] ?? "no name")",
+             "body": commentText,
+             "email": "test@gmail.com",
+             "postId": currentUserId!
+         ]
+         
+         let url = APIUrls.commentUrl // base URL
+         AF.request(url,method: .post, parameters: param, encoding: JSONEncoding.default).responseData { result in
+             switch result.result{
+             case .success(let response):
+                 do{
+                     let newComment = try JSONDecoder().decode(CommentsDataModel.self, from: response)
+                         self.newUserModel.addComment(newComment, for: postId) // Add on top
+                         self.txtCommentAdd.text = ""
+                         self.tblComment.setContentOffset(CGPoint.zero, animated:false)//scroll to top
+                         self.tblComment.reloadData()
+                     print("Comment added successfully")
+                 } catch{
+                     print("comment error in UserViewModel:", error)
+                     self.showAlert(message: "Failed to add post.")
+                 }
+             case .failure(let error):
+                 print("Error adding comment:", error)
+             }
+             
+         }
+       
+     }
+ }
+
+ @objc func commentBtn(sender: UIButton){
+     guard let indexPath = editButton(sender, in: postTblView) else { return }
+     let post = newUserModel.dictComments[indexPath.row]
+     let userID = newUserModel.arrPosts[indexPath.row].userID
+     let selectedUser = newUserModel.arrPosts[indexPath.row]
+     let fixedIndex = indexPath.row % currentUserID.count
+     let otpVC = storyboard?.instantiateViewController(withIdentifier: "CommentVC") as! CommentVC
+//        otpVC.existingPost = post
+     otpVC.nameAndId = self.currentUserID
+     otpVC.currentUserId = self.currentID
+     otpVC.titleText = selectedUser.title
+     otpVC.bodyText = selectedUser.body
+     otpVC.userName = currentUserID[userID]
+     otpVC.imageName = arrImg[fixedIndex]
+
+     navigationController?.pushViewController(otpVC, animated: false)
+ }
+ 
+ cell.btnComment.addTarget(self, action: #selector(commentBtn), for: .touchUpInside)
