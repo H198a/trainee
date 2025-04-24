@@ -353,3 +353,57 @@ RangeUISlider
  }
  
  cell.btnComment.addTarget(self, action: #selector(commentBtn), for: .touchUpInside)
+
+
+ extension ImageSelectionVC{
+     func setImage(){
+         let imagePickerVC = UIImagePickerController()
+         imagePickerVC.sourceType = .photoLibrary
+         imagePickerVC.delegate = self // new
+         present(imagePickerVC, animated: true)
+     }
+ }
+ //MARK: UIImagePickerControllerDelegate, UINavigationControllerDelegate
+ extension ImageSelectionVC: UIImagePickerControllerDelegate,UINavigationControllerDelegate{
+     func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
+         picker.dismiss(animated: true, completion: nil)
+         let editImageVC = storyboard?.instantiateViewController(withIdentifier: "EditImageVC") as! EditImageVC
+         if let image = info[.originalImage] as? UIImage{
+             editImageVC.imgEdit.image = image
+         }
+         navigationController?.pushViewController(editImageVC, animated: true)
+     }
+ }
+ //MARK: Click Events
+ extension ImageSelectionVC{
+     @IBAction func onClickSelectImage(_ sender: Any) {
+         setImage()
+     }
+ }
+
+ class EditImageVC: UIViewController {
+ //MARK: Outlet and Variable Declaration
+     @IBOutlet weak var imgEdit: UIImageView!
+     override func viewDidLoad() {
+         super.viewDidLoad()
+     }
+     
+     override func viewWillAppear(_ animated: Bool) {
+         super.viewWillAppear(animated)
+         navigationController?.setNavigationBarHidden(true, animated: true)
+     }
+     override func viewWillDisappear(_ animated: Bool) {
+         super.viewWillDisappear(animated)
+         navigationController?.setNavigationBarHidden(true, animated: true)
+     }
+ }
+ //MARK: Click Events
+ extension EditImageVC{
+     @IBAction func onClickSave(_ sender: Any) {
+         
+     }
+     @IBAction func onClickBack(_ sender: Any) {
+         navigationController?.popViewController(animated: true)
+     }
+     
+ }
