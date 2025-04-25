@@ -70,3 +70,33 @@ override func viewDidLoad() {
     super.viewDidLoad()
     drawingView.backgroundColor = .clear
 }
+
+
+
+func imageFrameInImageView(_ imageView: UIImageView) -> CGRect {
+    guard let image = imageView.image else { return .zero }
+
+    let imageRatio = image.size.width / image.size.height
+    let viewRatio = imageView.frame.width / imageView.frame.height
+
+    if imageRatio > viewRatio {
+        // Image is wider
+        let width = imageView.frame.width
+        let height = width / imageRatio
+        let y = (imageView.frame.height - height) / 2
+        return CGRect(x: 0, y: y, width: width, height: height)
+    } else {
+        // Image is taller
+        let height = imageView.frame.height
+        let width = height * imageRatio
+        let x = (imageView.frame.width - width) / 2
+        return CGRect(x: x, y: 0, width: width, height: height)
+    }
+}
+override func viewDidLayoutSubviews() {
+    super.viewDidLayoutSubviews()
+
+    // Align drawingView exactly on top of the image area
+    let imageFrame = imageFrameInImageView(drawingImg)
+    drawingView.frame = imageFrame
+}
