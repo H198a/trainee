@@ -1,0 +1,82 @@
+import UIKit
+import CoreImage
+
+class ViewController: UIViewController {
+
+    @IBOutlet weak var imageView: UIImageView!
+    @IBOutlet weak var collectionView: UICollectionView!
+
+    let context = CIContext()
+    var originalImage: UIImage?
+    let filterNames = ["Original", "CIPhotoEffectNoir", "CIPhotoEffectChrome", "CIPhotoEffectInstant", "CIPhotoEffectFade", "CIPhotoEffectMono", "CIPhotoEffectProcess"]
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        collectionView.dataSource = self
+        collectionView.delegate = self
+
+        originalImage = imageView.image
+    }
+
+    func applyFilter(_ filterName: String) {
+        guard let originalImage = originalImage else { return }
+
+        if filterName == "Original" {
+            imageView.image = originalImage
+            return
+        }
+
+        guard let ciImage = CIImage(image: originalImage),
+              let filter = CIFilter(name: filterName) else { return }
+
+        filter.setValue(ciImage, forKey: kCIInputImageKey)
+
+        if let outputImage = filter.outputImage,
+           let cgImage = context.createCGImage(outputImage, from: outputImage.extent) {
+            imageView.image = UIImage(cgImage: cgImage)
+        }
+    }
+}
+
+extension ViewController: UICollectionViewDataSource, UICollectionViewDelegate, UICollectionViewDelegateFlowLayout {
+
+    func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
+        return filterNames.count
+    }
+
+    func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
+        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "FilterCell", for: indexPath) as! FilterCell
+
+        let filterName = filterNames[indexPath.item]
+        cell.filterLabel.text = filterName.replacingOccurrences(of: "CIPhotoEffect", with: "")
+
+        // Show preview of filtered image
+        if let image = originalImage {
+            if filterName == "Original" {
+                cell.filterImageView.image = image
+            } else {
+                let ciImage = CIImage(image: image)
+                let filter = CIFilter(name: filterName)
+                filter?.setValue(ciImage, forKey: kCIInputImageKey)
+
+                if let outputImage = filter?.outputImage,
+                   let cgImage = context.createCGImage(outputImage, from: outputImage.extent) {
+                    cell.filterImageView.image = UIImage(cgImage: cgImage)
+                }
+            }
+        }
+
+        return cell
+    }
+
+    func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
+        let selectedFilter = filterNames[indexPath.item]
+        applyFilter(selectedFilter)
+    }
+
+    // Optional: cell size
+    func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout,
+                        sizeForItemAt indexPath: IndexPath) -> CGSize {
+        return CGSize(width: 80, height: 100)
+    }
+}
