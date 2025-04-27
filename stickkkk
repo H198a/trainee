@@ -1,0 +1,288 @@
+import UIKit
+import EmojiPicker
+import FAStickers
+
+class EditVC: UIViewController {
+    @IBOutlet weak var imgEdit: UIImageView!
+    @IBOutlet weak var tblView: UITableView!
+    @IBOutlet weak var lblEmoji: UILabel!
+    @IBOutlet weak var btnDelete: UIButton!
+    
+    var selectedImage: UIImage?
+    var originalImage: UIImage?
+    var StickerVC: StickerViewController!
+    public var stickers : [String] = ["sticker1","sticker1","sticker2","sticker4","sticker5","sticker6","sticker7","sticker8"]
+    public var gifs : [String] = ["dance-funny","gif1","gif2","gif3","gif4","gif6","gif8"]
+    var currentImageView: UIImageView?
+    var currentStickerOrGifView: UIView?
+    
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        // append stickers
+
+        for i in 100...110 {
+            stickers.append(i.description)
+        }
+        let gifImage = ["gif1","gif2","gif3","gif4", "gif5","gif6","gif7","gif8", "gif9"]
+        // append gitf
+        for i in gifImage {
+            gifs.append(i)
+        }
+
+        print("StickerVC - GIFS count:", gifs.count)
+        print("StickerVC - Stickers count:", stickers.count)
+        StickerVC = StickerViewController(nibName: nil, bundle: Bundle(for: StickerViewController.self))
+        
+        StickerVC.stickers = self.stickers
+        StickerVC.gits = self.gifs
+        
+        tblView.isHidden = true
+        btnDelete.isHidden = true
+        imgEdit.image = selectedImage
+        originalImage = imgEdit.image // Save original at load
+        // Do any additional setup after loading the view.
+        let nibName = UINib(nibName: "FilterCell", bundle: nil)
+        tblView.register(nibName, forCellReuseIdentifier: "FilterCell")
+        // trying to move the label
+        let gesture = UIPanGestureRecognizer(target: self, action: #selector(self.wasDragged(gestureRecognizer:)))
+        
+        lblEmoji.isUserInteractionEnabled = true
+        lblEmoji.addGestureRecognizer(gesture)
+    }
+    @objc
+    func wasDragged(gestureRecognizer: UIPanGestureRecognizer) {
+        let draggedView = gestureRecognizer.view!
+        let translation = gestureRecognizer.translation(in: self.view)
+
+        // Update position
+        draggedView.center = CGPoint(x: draggedView.center.x + translation.x,
+                                     y: draggedView.center.y + translation.y)
+
+        gestureRecognizer.setTranslation(.zero, in: self.view)
+
+        // Show delete button while dragging
+        btnDelete.isHidden = false
+
+        if gestureRecognizer.state == .ended {
+            // Check if draggedView overlaps delete button
+            if draggedView.frame.intersects(btnDelete.frame) {
+                draggedView.removeFromSuperview()
+                print("🗑️ Removed item by dragging into delete area")
+            }
+
+            // Hide delete button after drop
+            btnDelete.isHidden = true
+        }
+    }
+
+    
+    @IBAction func onClickText(_ sender: Any) {
+    }
+    
+    
+    @IBAction func onClickEmojis(_ sender: Any) {
+        showStickerView()
+    }
+    
+    @IBAction func onClickBack(_ sender: Any) {
+    }
+    
+    @IBAction func onClickFrames(_ sender: Any) {
+        saveEditedImageToGallery()
+    }
+    
+    
+    @IBAction func onClickFilters(_ sender: Any) {
+        tblView.isHidden = true
+        
+        
+        let alert = UIAlertController(title: nil, message: nil, preferredStyle: .actionSheet)
+           // List of filter options
+        let filters: [(title: String, name: String)] = [
+               ("CIPhotoEffectTransfer", "CIPhotoEffectTransfer"),
+               ("CIPhotoEffectTonal", "CIPhotoEffectTonal"),
+               ("CIPhotoEffectProcess", "CIPhotoEffectProcess"),
+               ("CIPhotoEffectNoir", "CIPhotoEffectNoir"),
+               ("CIPhotoEffectMono", "CIPhotoEffectMono"),
+               ("CIPhotoEffectInstant", "CIPhotoEffectInstant"),
+               ("CIPhotoEffectFade", "CIPhotoEffectFade"),
+               ("CIPhotoEffectChrome", "CIPhotoEffectChrome")
+           ]
+        for filter in filters {
+               alert.addAction(UIAlertAction(title: filter.title, style: .default, handler: { _ in
+                   self.applyFilter(filterName: filter.name)
+               }))
+           }
+           if let popover = alert.popoverPresentationController, let button = sender as? UIView {
+               popover.sourceView = button
+               popover.sourceRect = button.bounds
+           }
+           present(alert, animated: true, completion: nil)
+    }
+    
+    @IBAction func onClickDraw(_ sender: Any) {
+    }
+    
+     @IBAction func onClickCrop(_ sender: Any) {
+     }
+    func applyFilter(filterName: String) {
+        
+        guard let inputImage = originalImage,
+              let ciImage = CIImage(image: inputImage) else { return }
+
+        let context = CIContext(options: nil)
+        var filteredImage: CIImage?
+
+        switch filterName {
+        case "CIHueAdjust":
+            filteredImage = ciImage.applyingFilter(filterName, parameters: [kCIInputAngleKey: Double(arc4random_uniform(314)) / 100])
+        case "CISepiaTone":
+            filteredImage = ciImage.applyingFilter(filterName, parameters: [kCIInputIntensityKey: 1.0])
+        default:
+            filteredImage = ciImage.applyingFilter(filterName, parameters: [:])
+        }
+
+        if let output = filteredImage,
+           let cgImage = context.createCGImage(output, from: output.extent) {
+            imgEdit.image = UIImage(cgImage: cgImage)
+        }
+    }
+}
+//MARK: Custom Functions
+extension EditVC{
+    
+}
+extension EditVC: StickerEmojiDelegate {
+    func GitTapped(GifName: String) {
+        print("GIF Tapped:", GifName)
+
+        // Remove the currently displayed GIF if there is one
+        currentStickerOrGifView?.removeFromSuperview()
+        currentStickerOrGifView = nil
+
+        // Create a new UIImageView to display the selected GIF
+        let gifImageView = UIImageView(frame: CGRect(x: 0, y: 0, width: 100, height: 100))
+        gifImageView.loadGif(name: GifName)
+        gifImageView.contentMode = .scaleAspectFit
+        gifImageView.center = view.center
+        gifImageView.isUserInteractionEnabled = true
+        gifImageView.addGestureRecognizer(UIPanGestureRecognizer(target: self, action: #selector(self.wasDragged(gestureRecognizer:))))
+
+        // Add to the view
+        view.addSubview(gifImageView)
+
+        // Keep reference to the current gif view so we can remove/replace it later
+        currentStickerOrGifView = gifImageView
+
+        // Close sticker view
+        removeStickerView()
+        /*
+         public var gifs : [String] = ["dance-funny","gif1","gif2","gif3","gif4","gif6","gif8"]
+         func GitTapped(GifName: String) {
+                 print("GIF Tapped:", GifName)
+                 currentStickerOrGifView?.removeFromSuperview()
+                 currentStickerOrGifView = nil
+                 
+                 // **The FAStickers library likely has its own way of displaying GIFs.
+                 // You might need to use a specific view or method from the library here.**
+                 for (index, gifName) in gifs.enumerated() {
+                     let gifImageView = UIImageView(frame: CGRect(x: 50, y: 100 + CGFloat(index * 120), width: 100, height: 100))
+                     gifImageView.loadGif(name: gifName)
+                     gifImageView.contentMode = .scaleAspectFit
+                     gifImageView.isUserInteractionEnabled = true
+                     gifImageView.addGestureRecognizer(UIPanGestureRecognizer(target: self, action: #selector(self.wasDragged(gestureRecognizer:))))
+                     
+                     // Add to the view
+                     view.addSubview(gifImageView)
+                 }
+             }
+         */
+    }
+
+    func EmojiTapped(EmojiName: String) {
+        print(EmojiName)
+        lblEmoji.text = EmojiName
+        lblEmoji.font = .setFont(type: .Regular, size: 70)
+        self.removeStickerView()
+    }
+    
+    func StickerTapped(StickerName: String) {
+           print("Sticker tapped:", StickerName)
+           currentStickerOrGifView?.removeFromSuperview()
+           currentStickerOrGifView = nil
+
+           // **The FAStickers library likely has its own way to display stickers.
+           // You might need to use a specific view or method from the library here.**
+        if let image = UIImage(named: StickerName) {
+               let imageView = UIImageView(image: image)
+               imageView.frame = CGRect(x: 0, y: 0, width: 100, height: 100)
+               imageView.contentMode = .scaleAspectFit
+               imageView.center = view.center
+               imageView.isUserInteractionEnabled = true
+               imageView.addGestureRecognizer(UIPanGestureRecognizer(target: self, action: #selector(self.wasDragged(gestureRecognizer:))))
+               view.addSubview(imageView)
+               currentStickerOrGifView = imageView
+           } else {
+               print(" Could not find sticker image named: \(StickerName)")
+           }
+           removeStickerView()
+       }
+}
+//MARK: custom function
+extension EditVC{
+    func showStickerView() {
+        StickerVC.stickerDelegate = self
+        self.addChild(StickerVC)
+               self.view.addSubview(StickerVC.view)
+               StickerVC.didMove(toParent: self)
+               let height = view.frame.height
+               let width = view.frame.width
+               StickerVC.view.frame = CGRect(x: 0, y: self.view.frame.maxY , width: width, height: height)
+
+               UIView.animate(withDuration: 0.3) {
+                   var frame = self.StickerVC.view.frame
+                   frame.origin.y = self.view.frame.maxY - self.StickerVC.view.frame.height
+                   self.StickerVC.view.frame = frame
+               }
+    }
+    
+    func removeStickerView() {
+        UIView.animate(withDuration: 0.3,
+                       delay: 0,
+                       options: UIView.AnimationOptions.curveEaseIn,
+                       animations: { () -> Void in
+            var frame = self.StickerVC.view.frame
+            frame.origin.y = UIScreen.main.bounds.maxY
+            self.StickerVC.view.frame = frame
+            
+        }, completion: { (finished) -> Void in
+            self.StickerVC.view.removeFromSuperview()
+            self.StickerVC.removeFromParent()
+        })
+    }
+    func saveEditedImageToGallery() {
+        // Replace `self.view` with your container view if needed
+        let renderer = UIGraphicsImageRenderer(bounds: self.view.bounds)
+        let renderedImage = renderer.image { context in
+            self.view.layer.render(in: context.cgContext)
+        }
+        
+        // Save the rendered image to photo album
+        UIImageWriteToSavedPhotosAlbum(renderedImage, self, #selector(imageSaveFinished(_:didFinishSavingWithError:contextInfo:)), nil)
+    }
+
+    @objc func imageSaveFinished(_ image: UIImage, didFinishSavingWithError error: Error?, contextInfo: UnsafeRawPointer) {
+        if let error = error {
+            print(" Error saving image: \(error.localizedDescription)")
+            // Optional: Show alert
+        } else {
+            print(" Image saved successfully to gallery!")
+            // Optional: Show success alert
+        }
+    }
+/*
+ <key>NSPhotoLibraryAddUsageDescription</key>
+ <string>This app needs access to your photo library to save edited images.</string>
+
+ */
+}
