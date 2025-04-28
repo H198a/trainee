@@ -1,4 +1,51 @@
 import UIKit
+
+class ViewController: UIViewController, UITextViewDelegate {
+    
+    var textView: UITextView!
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        
+        textView = UITextView()
+        textView.delegate = self
+        textView.isScrollEnabled = false
+        textView.font = UIFont.systemFont(ofSize: 16)
+        textView.backgroundColor = UIColor.lightGray.withAlphaComponent(0.3)
+        
+        // Set very small initial size (like one letter)
+        textView.frame = CGRect(x: 10, y: 100, width: 20, height: 20)
+        
+        view.addSubview(textView)
+    }
+    
+    func textViewDidChange(_ textView: UITextView) {
+        let maxWidth = UIScreen.main.bounds.width - 10
+        let maxHeight = UIScreen.main.bounds.height - 10
+        
+        // Measure the text size
+        let size = CGSize(width: maxWidth, height: CGFloat.greatestFiniteMagnitude)
+        let estimatedSize = textView.sizeThatFits(size)
+        
+        var newWidth = estimatedSize.width
+        var newHeight = estimatedSize.height
+        
+        // Restrict width and height
+        newWidth = min(newWidth, maxWidth)
+        newHeight = min(newHeight, maxHeight)
+        
+        UIView.animate(withDuration: 0.2) {
+            self.textView.frame.size = CGSize(width: newWidth, height: newHeight)
+        }
+    }
+}
+
+
+
+
+
+
+import UIKit
 import EmojiPicker
 import FAStickers
 
