@@ -370,3 +370,92 @@ class ViewController: UIViewController, UITextViewDelegate {
         textView.frame = frame
     }
 }
+
+
+
+
+ @objc
+ func wasDragged(gestureRecognizer: UIPanGestureRecognizer) {
+     guard let draggedView = gestureRecognizer.view else { return }
+     let translation = gestureRecognizer.translation(in: self.view)
+
+     // Calculate the new center position
+     var newCenter = CGPoint(x: draggedView.center.x + translation.x,
+                             y: draggedView.center.y + translation.y)
+
+     // Get the safe area insets and frame
+     let safeAreaFrame = view.safeAreaLayoutGuide.layoutFrame
+
+     // Calculate half of the dragged view's size
+     let halfWidth = draggedView.bounds.width / 2
+     let halfHeight = draggedView.bounds.height / 2
+
+     // Clamp new center to stay within safe area
+     newCenter.x = max(safeAreaFrame.minX + halfWidth, min(newCenter.x, safeAreaFrame.maxX - halfWidth))
+     newCenter.y = max(safeAreaFrame.minY + halfHeight, min(newCenter.y, safeAreaFrame.maxY - halfHeight))
+
+     // Update position
+     draggedView.center = newCenter
+     gestureRecognizer.setTranslation(.zero, in: self.view)
+
+     // Show delete button while dragging
+     btnDelete.isHidden = false
+
+     if gestureRecognizer.state == .ended {
+         // Check if draggedView overlaps delete button
+         if draggedView.frame.intersects(btnDelete.frame) {
+             draggedView.removeFromSuperview()
+             print("Removed item by dragging into delete area")
+         }
+         // Hide delete button after drop
+         btnDelete.isHidden = true
+     }
+ }
+
+ 
+ 
+ func saveEditedImageToGallery() {
+     // Replace `containerView` with the name of your subview
+     guard let targetView = self.containerView else { return }
+
+     let renderer = UIGraphicsImageRenderer(bounds: targetView.bounds)
+     let renderedImage = renderer.image { context in
+         targetView.layer.render(in: context.cgContext)
+     }
+     
+     UIImageWriteToSavedPhotosAlbum(renderedImage, self, #selector(imageSaveFinished(_:didFinishSavingWithError:contextInfo:)), nil)
+ }
+
+ 
+ 
+ 
+ btnDelete.isHidden = false
+
+    switch gestureRecognizer.state {
+    case .changed:
+        // Real-time highlight if overlapping with delete button
+        if draggedView.frame.intersects(btnDelete.frame) {
+            btnDelete.backgroundColor = UIColor.red.withAlphaComponent(0.8)
+        } else {
+            btnDelete.backgroundColor = UIColor.lightGray.withAlphaComponent(0.4)
+        }
+
+    case .ended:
+        if draggedView.frame.intersects(btnDelete.frame) {
+            draggedView.removeFromSuperview()
+            print("Removed item by dragging into delete area")
+        }
+
+        // Reset appearance
+        btnDelete.isHidden = true
+        btnDelete.backgroundColor = UIColor.clear
+
+    default:
+        break
+    }
+///
+ CollageView
+ pod 'ImagesView'
+ pod 'SwiftPhotoGallery'
+ https://www.kodeco.com/21959913-uicollectionview-tutorial-headers-selection-and-reordering/page/4
+ */
