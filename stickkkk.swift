@@ -459,3 +459,622 @@ class ViewController: UIViewController, UITextViewDelegate {
  pod 'SwiftPhotoGallery'
  https://www.kodeco.com/21959913-uicollectionview-tutorial-headers-selection-and-reordering/page/4
  */
+
+
+
+import UIKit
+import Mantis
+import CoreImage
+import SwiftLoader
+import EmojiPicker
+import FAStickers
+import ABCollage
+import NohanaImagePicker
+import Photos
+import PhotosUI
+
+class EditImageVC: UIViewController {
+    //MARK: Outlet and Variable Declaration
+    @IBOutlet weak var imgEdit: UIImageView!
+    @IBOutlet weak var editOptionView: UIView!
+    @IBOutlet weak var cvFilters: UICollectionView!
+    @IBOutlet weak var btnCancel: UIButton!
+    @IBOutlet weak var drawingView: DrawingView!
+    @IBOutlet weak var btnClearDraw: UIButton!
+    @IBOutlet weak var btnUndoDraw: UIButton!
+    @IBOutlet weak var btnSave: UIButton!
+    @IBOutlet weak var lblEmoji: UILabel!
+    @IBOutlet weak var btnDelete: UIButton!
+    @IBOutlet weak var txtDesc: UITextView!
+    @IBOutlet weak var mainView: UIView!
+    @IBOutlet weak var collageView: ABCollageView!
+    @IBOutlet weak var cvCollage: UICollectionView!
+    
+    let minTextViewHeight: CGFloat = 32
+    let maxTextViewHeight: CGFloat = 64
+    var originalImage: UIImage?
+    var selectedImage: UIImage?
+    var transformation: Transformation?
+    var centerPoint: CGPoint = .zero
+    var picker = NohanaImagePickerController()
+    var addedStickersOrGifs: [UIView] = []
+    let arrCollageFrame = ["frame1","frame2","frame3"]
+    var currentSelectionLimit = 0
+    var selectedFrameIndex = 0
+    var selectedImages: [UIImage] = []
+
+
+    let context = CIContext(options: nil)
+    var StickerVC: StickerViewController!
+    let filterNames = ["Original", "CIPhotoEffectNoir", "CIPhotoEffectChrome", "CIPhotoEffectInstant", "CIPhotoEffectFade", "CIPhotoEffectMono", "CIPhotoEffectProcess"]
+    public var stickers : [String] = ["sticker1","sticker2","sticker3","sticker4","sticker5","sticker6","sticker7","sticker8","sticker9","sticker10"]
+    public var gifs : [String] = ["gif2","gif4","gif5","gif7","gif8"]
+    var currentStickerOrGifView: UIView?
+    
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        SwiftLoader.hide()
+        setUP()
+        gifAndStickers()
+        imgEdit.image = selectedImage
+        originalImage = imgEdit.image
+    }
+    
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        navigationController?.setNavigationBarHidden(true, animated: true)
+    }
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        navigationController?.setNavigationBarHidden(true, animated: true)
+    }
+    @objc
+    func wasDragged(gestureRecognizer: UIPanGestureRecognizer) {
+        let draggedView = gestureRecognizer.view!
+        let translation = gestureRecognizer.translation(in: self.view)
+        
+        // Update position
+        draggedView.center = CGPoint(x: draggedView.center.x + translation.x,
+                                     y: draggedView.center.y + translation.y)
+        
+        gestureRecognizer.setTranslation(.zero, in: self.view)
+        
+        // Show delete button while dragging
+        btnDelete.isHidden = false
+        
+        switch gestureRecognizer.state{
+        case .changed:
+            if draggedView.frame.intersects(btnDelete.frame){
+                btnDelete.backgroundColor = .btn
+                btnDelete.tintColor = .white
+            } else{
+                btnDelete.backgroundColor = .progress
+                btnDelete.tintColor = .btn
+            }
+        case .ended:
+            if draggedView.frame.intersects(btnDelete.frame){
+                draggedView.removeFromSuperview()
+                print("item deleted from view")
+            }
+            btnDelete.isHidden = true
+        default:
+            break
+        }
+    }
+    @objc func handlePinch(_ sender: UIPinchGestureRecognizer? = nil) {
+        sender?.view!.transform = (sender?.view?.transform.scaledBy(x: sender!.scale, y: sender!.scale))!
+        sender?.scale = 1.0
+    }
+    @objc func handleRotation(_ sender: UIRotationGestureRecognizer? = nil){
+        sender?.view?.transform = (sender?.view!.transform.rotated(by: sender!.rotation))!
+        sender!.rotation = 0
+    }
+    @objc func imageSaveFinished(_ image: UIImage, didFinishSavingWithError error: Error?, contextInfo: UnsafeRawPointer) {
+        if let error = error {
+            print(" Error saving image: \(error.localizedDescription)")
+            showAlertWith(title: "err", message: "cant save image to your Photos.")
+            //  Show alert
+        } else {
+            print(" Image saved successfully to gallery!")
+            showAlertWith(title: "Saved!", message: "image saved successfully to your Photos.")
+            //  Show success alert
+        }
+    }
+}
+//MARK: Setup UI
+extension EditImageVC{
+    func setUP(){
+        cvCollage.isHidden = true
+        
+        collageView.isHidden = true
+        txtDesc.isHidden = true
+        txtDesc.backgroundColor = UIColor.black.withAlphaComponent(0.5)
+        txtDesc.textColor = .white
+        txtDesc.delegate = self
+        txtDesc.isScrollEnabled = false
+        //zoom-in and zoom-out textview
+        let pinch:UIPinchGestureRecognizer = UIPinchGestureRecognizer(target: self, action: #selector(self.handlePinch(_:)))
+        txtDesc.addGestureRecognizer(pinch)
+        //rotate textview
+        let rotation:UIRotationGestureRecognizer = UIRotationGestureRecognizer(target: self, action: #selector(self.handleRotation(_:)))
+        txtDesc.addGestureRecognizer(rotation)
+        txtDesc.center = view.center//set textview in center
+        txtDesc.textAlignment = .center//set text in center
+        centerPoint = txtDesc.center
+        
+        btnDelete.isHidden = true
+        btnClearDraw.isHidden = true
+        btnUndoDraw.isHidden = true
+        drawingView.backgroundColor = .clear
+        drawingView.isUserInteractionEnabled = false
+        cvFilters.isHidden = true
+        btnCancel.isHidden = true
+        let nibName = UINib(nibName: "FilterCell", bundle: nil)
+        cvFilters.register(nibName, forCellWithReuseIdentifier: "FilterCell")
+        
+        let nibbName = UINib(nibName: "CollageCell", bundle: nil)
+        cvCollage.register(nibbName, forCellWithReuseIdentifier: "CollageCell")
+        let gesture = UIPanGestureRecognizer(target: self, action: #selector(self.wasDragged(gestureRecognizer:)))
+        
+        lblEmoji.isUserInteractionEnabled = true
+        lblEmoji.addGestureRecognizer(gesture)
+        let gestureTxt = UIPanGestureRecognizer(target: self, action: #selector(self.wasDragged(gestureRecognizer:)))
+        txtDesc.addGestureRecognizer(gestureTxt)
+    }
+}
+//MARK: Custom Funcation
+extension EditImageVC{
+    
+    func showAlertWith(title: String, message: String){
+        let ac = UIAlertController(title: title, message: message, preferredStyle: .alert)
+        ac.addAction(UIAlertAction(title: "OK", style: .default))
+        present(ac, animated: true)
+    }
+    
+    private func createConfigWithPresetTransformation() -> Config {
+        var config = Mantis.Config()
+        
+        if let transformation = transformation {
+            config.cropViewConfig.presetTransformationType = .presetInfo(info: transformation)
+        }
+        
+        return config
+    }
+    func applyFilters(_ filterName: String) {
+        guard let originalImage = originalImage else { return }
+        
+        if filterName == "Original" {
+            imgEdit.image = originalImage
+            return
+        }
+        
+        guard let ciImage = CIImage(image: originalImage),
+              let filter = CIFilter(name: filterName) else { return }
+        
+        filter.setValue(ciImage, forKey: kCIInputImageKey)
+        
+        if let outputImage = filter.outputImage,
+           let cgImage = context.createCGImage(outputImage, from: outputImage.extent) {
+            imgEdit.image = UIImage(cgImage: cgImage)
+        }
+    }
+    func gifAndStickers(){
+        for i in stickers {
+            stickers.append(i)
+        }
+        // append gitf
+        for i in gifs {
+            gifs.append(i)
+        }
+        StickerVC = StickerViewController(nibName: nil, bundle: Bundle(for: StickerViewController.self))
+        StickerVC.stickers = self.stickers
+        StickerVC.gits = self.gifs
+    }
+    func applyCropFilter(){
+        var config = createConfigWithPresetTransformation()
+        config.cropMode = .async
+        config.cropToolbarConfig.toolbarButtonOptions = [.clockwiseRotate, .reset, .ratio, .autoAdjust, .horizontallyFlip]
+        
+        if let transformation = transformation {
+            config.cropViewConfig.presetTransformationType = .presetInfo(info: transformation)
+        }
+        
+        let cropViewController = Mantis.cropViewController(image: selectedImage!,
+                                                           config: config)
+        cropViewController.delegate = self
+        
+        let navigationController = UINavigationController(rootViewController: cropViewController)
+        cropViewController.title = "CropImage"
+        navigationController.modalPresentationStyle = .fullScreen
+        present(navigationController, animated: true)
+    }
+    func showStickerView() {
+        StickerVC.stickerDelegate = self
+        self.addChild(StickerVC)
+        self.view.addSubview(StickerVC.view)
+        StickerVC.didMove(toParent: self)
+        let height = view.frame.height
+        let width = view.frame.width
+        StickerVC.view.frame = CGRect(x: 0, y: self.view.frame.maxY , width: width, height: height)
+        
+        UIView.animate(withDuration: 0.3) {
+            var frame = self.StickerVC.view.frame
+            frame.origin.y = self.view.frame.maxY - self.StickerVC.view.frame.height
+            self.StickerVC.view.frame = frame
+        }
+    }
+    func removeStickerView() {
+        UIView.animate(withDuration: 0.3,
+                       delay: 0,
+                       options: UIView.AnimationOptions.curveEaseIn,
+                       animations: { () -> Void in
+            var frame = self.StickerVC.view.frame
+            frame.origin.y = UIScreen.main.bounds.maxY
+            self.StickerVC.view.frame = frame
+            
+        }, completion: { (finished) -> Void in
+            self.StickerVC.view.removeFromSuperview()
+            self.StickerVC.removeFromParent()
+        })
+    }
+    func saveEditedImageToGallery() {
+        // Replace `self.view` with your container view if needed
+        let renderer = UIGraphicsImageRenderer(bounds: mainView.bounds)
+        let renderedImage = renderer.image { context in
+            mainView.layer.render(in: context.cgContext)
+        }
+        
+        // Save the rendered image to photo album
+        UIImageWriteToSavedPhotosAlbum(renderedImage, self, #selector(imageSaveFinished(_:didFinishSavingWithError:contextInfo:)), nil)
+    }
+    private func showImagePicker() {
+        var configuration = PHPickerConfiguration()
+        configuration.selectionLimit = currentSelectionLimit
+        configuration.filter = .images
+
+        let picker = PHPickerViewController(configuration: configuration)
+        picker.delegate = self
+        present(picker, animated: true)
+    }
+    func createCollageWithSelectedImages() {
+        var abImages: [ABImage] = []
+        for img in selectedImages {
+            abImages.append(ABImage(image: img))
+        }
+
+        let selectedFrame = arrCollageFrame[selectedFrameIndex]
+        print("Using frame: \(selectedFrame)")
+
+        // Adjust layout if needed per frame type
+        collageView.media = [abImages]
+        collageView.isHidden = false
+        cvCollage.isHidden = true
+    }
+}
+//MARK: CropViewControllerDelegate
+extension EditImageVC: CropViewControllerDelegate {
+    func cropViewControllerDidCrop(_ cropViewController: Mantis.CropViewController, cropped: UIImage, transformation: Mantis.Transformation, cropInfo: Mantis.CropInfo) {
+        print("transformation is \(transformation)")
+        print("cropInfo is \(cropInfo)")
+        imgEdit.image = cropped
+        self.transformation = transformation
+        dismiss(animated: true)
+    }
+    
+    func cropViewControllerDidCancel(_ cropViewController: CropViewController, original: UIImage) {
+        dismiss(animated: true)
+    }
+    
+    func cropViewController(_ cropViewController: CropViewController, didBecomeResettable resettable: Bool) {
+        print("Is resettable: \(resettable)")
+    }
+}
+//MARK: UICollectionViewDelegate, UICollectionViewDataSource
+extension EditImageVC: UICollectionViewDelegate, UICollectionViewDataSource{
+    func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
+        if collectionView == cvFilters{
+            return filterNames.count
+        } else{
+            return arrCollageFrame.count
+        }
+    }
+    
+    func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
+        if collectionView == cvFilters{
+            let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "FilterCell", for: indexPath) as! FilterCell
+            let filterName = filterNames[indexPath.item]
+            
+            if let image = originalImage {
+                if filterName == "Original" {
+                    cell.imgFilter.image = image
+                    cell.imgBlock.image = UIImage(named: "background")
+                    cell.imgBlock.image =  cell.imgBlock.image!.withRenderingMode(.alwaysTemplate)
+                    cell.imgBlock.tintColor = .lightGray
+                } else {
+                    let ciImage = CIImage(image: image)
+                    let filter = CIFilter(name: filterName)
+                    filter?.setValue(ciImage, forKey: kCIInputImageKey)
+
+                    if let outputImage = filter?.outputImage,
+                       let cgImage = context.createCGImage(outputImage, from: outputImage.extent) {
+                        cell.imgFilter.image = UIImage(cgImage: cgImage)
+                        cell.imgBlock.image = nil
+                    }
+                }
+            }
+            return cell
+        } else{
+            let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "CollageCell", for: indexPath) as! CollageCell
+            cell.imgCollage.image = UIImage(named: arrCollageFrame[indexPath.item])
+            return cell
+        }
+    
+    }
+    func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
+        if collectionView == cvFilters{
+            let selectedFilter = filterNames[indexPath.item]
+            applyFilters(selectedFilter)
+        } else{
+            selectedFrameIndex = indexPath.item
+            switch selectedFrameIndex{
+            case 0: currentSelectionLimit = 3
+            case 1: currentSelectionLimit = 4
+            case 2: currentSelectionLimit = 9
+            default: currentSelectionLimit = 1
+            }
+            showImagePicker()
+        }
+    }
+}
+//MARK: StickerEmojiDelegate
+extension EditImageVC: StickerEmojiDelegate{
+    func EmojiTapped(EmojiName: String) {
+        lblEmoji.text = EmojiName
+        lblEmoji.font = .setFont(type: .Regular, size: 70)
+        let pinch:UIPinchGestureRecognizer = UIPinchGestureRecognizer(target: self, action: #selector(self.handlePinch(_:)))
+        lblEmoji.addGestureRecognizer(pinch)
+        let rotation:UIRotationGestureRecognizer = UIRotationGestureRecognizer(target: self, action: #selector(self.handleRotation(_:)))
+        self.lblEmoji.addGestureRecognizer(rotation)
+        addedStickersOrGifs.append(lblEmoji)
+        self.removeStickerView()
+    }
+
+    func StickerTapped(StickerName: String) {
+        currentStickerOrGifView?.removeFromSuperview()
+        currentStickerOrGifView = nil
+        
+        if let image = UIImage(named: StickerName){
+            let imageView = UIImageView(image: image)
+            imageView.frame = CGRect(x: 0, y: 0, width: 100, height: 100)
+            imageView.contentMode = .scaleAspectFit
+            imageView.center = view.center
+            imageView.isUserInteractionEnabled = true
+            imageView.addGestureRecognizer(UIPanGestureRecognizer(target: self, action: #selector(self.wasDragged(gestureRecognizer:))))
+            let pinch:UIPinchGestureRecognizer = UIPinchGestureRecognizer(target: self, action: #selector(self.handlePinch(_:)))
+            imageView.addGestureRecognizer(pinch)
+            let rotation:UIRotationGestureRecognizer = UIRotationGestureRecognizer(target: self, action: #selector(self.handleRotation(_:)))
+            imageView.addGestureRecognizer(rotation)
+            mainView.addSubview(imageView)
+//            currentStickerOrGifView = imageView
+            addedStickersOrGifs.append(imageView)
+        } else{
+            print("sticker not found",StickerName)
+        }
+        removeStickerView()
+    }
+    
+    func GitTapped(GifName: String) {
+        currentStickerOrGifView?.removeFromSuperview()
+        currentStickerOrGifView = nil
+        
+        let gifImageView = UIImageView(frame: CGRect(x: 0, y: 0, width: 100, height: 100))
+        gifImageView.loadGif(name: GifName)
+        gifImageView.contentMode = .scaleAspectFit
+        gifImageView.center = view.center
+        gifImageView.isUserInteractionEnabled = true
+        gifImageView.addGestureRecognizer(UIPanGestureRecognizer(target: self, action: #selector(self.wasDragged(gestureRecognizer:))))
+        let pinch:UIPinchGestureRecognizer = UIPinchGestureRecognizer(target: self, action: #selector(self.handlePinch(_:)))
+        gifImageView.addGestureRecognizer(pinch)
+        let rotation:UIRotationGestureRecognizer = UIRotationGestureRecognizer(target: self, action: #selector(self.handleRotation(_:)))
+        gifImageView.addGestureRecognizer(rotation)
+        mainView.addSubview(gifImageView)
+//        currentStickerOrGifView = gifImageView
+        addedStickersOrGifs.append(gifImageView) // or gifImageView
+        removeStickerView()
+    }
+}
+//MARK: UITextViewDelegate
+extension EditImageVC: UITextViewDelegate {
+    func textView(_ textView: UITextView, shouldChangeTextIn range: NSRange, replacementText text: String) -> Bool {
+        return true
+    }
+    func textViewDidChange(_ textView: UITextView) {
+        //tetx fileld size
+        let maxWidth = UIScreen.main.bounds.width - 30//width of textview
+        let maxHeight = UIScreen.main.bounds.height - 10//height of textview
+        
+        // Measure the text size
+        let size = CGSize(width: maxWidth, height: CGFloat.greatestFiniteMagnitude)
+        let estimatedSize = textView.sizeThatFits(size)//measure size of textview after user entering text's in the textview
+        
+        var newWidth = estimatedSize.width//calculate final width after user enters text
+        var newHeight = estimatedSize.height//calculate final height after user enters text
+        
+        // Restrict width and height
+        newWidth = min(newWidth, maxWidth)
+        newHeight = min(newHeight, maxHeight)
+        
+        UIView.animate(withDuration: 0.2) {
+            self.txtDesc.frame.size = CGSize(width: newWidth, height: newHeight)
+//            self.txtDesc.center = self.view.center
+            self.txtDesc.center = self.centerPoint//start writing from center
+        }
+    }
+}
+//MARK: NohanaImagePickerControllerDelegate
+extension EditImageVC: NohanaImagePickerControllerDelegate {
+
+    func nohanaImagePickerDidCancel(_ picker: NohanaImagePickerController) {
+        print("🐷Canceled🙅")
+        picker.dismiss(animated: true, completion: nil)
+    }
+
+    func nohanaImagePicker(_ picker: NohanaImagePickerController, didFinishPickingPhotoKitAssets pickedAssts :[PHAsset]) {
+        print("🐷Completed🙆\n\tpickedAssets = \(pickedAssts)")
+        picker.dismiss(animated: true, completion: nil)
+    }
+}
+//MARK: PHPickerViewControllerDelegate
+extension EditImageVC: PHPickerViewControllerDelegate{
+    func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
+        picker.dismiss(animated: true)
+        selectedImages.removeAll()
+
+        let group = DispatchGroup()
+
+        for result in results {
+            group.enter()
+            if result.itemProvider.canLoadObject(ofClass: UIImage.self) {
+                result.itemProvider.loadObject(ofClass: UIImage.self) { [weak self] object, error in
+                    defer { group.leave() }
+                    if let image = object as? UIImage {
+                        self?.selectedImages.append(image)
+                    }
+                }
+            } else {
+                print("something is wrong")
+                group.leave()
+            }
+        }
+
+        group.notify(queue: .main) {
+            self.createCollageWithSelectedImages()
+        }
+    }
+}
+//MARK: Click Events
+extension EditImageVC{
+    @IBAction func onClickSave(_ sender: Any) {
+        btnClearDraw.isHidden = true
+        drawingView.isUserInteractionEnabled = false
+        btnUndoDraw.isHidden = true
+        saveEditedImageToGallery()
+//        guard let selectedImahe = imgEdit.image else{return}
+//        UIImageWriteToSavedPhotosAlbum(selectedImahe, self,#selector(imageSaveFinished(_:didFinishSavingWithError:contextInfo:)), nil)
+    }
+    @IBAction func onClickBack(_ sender: Any) {
+        navigationController?.popViewController(animated: true)
+    }
+    @IBAction func onClickCrop(_ sender: Any) {
+        btnUndoDraw.isHidden = true
+        btnClearDraw.isHidden = true
+        drawingView.isUserInteractionEnabled = false
+        applyCropFilter()
+    }
+    
+    @IBAction func onClickDraw(_ sender: Any) {
+        btnUndoDraw.isHidden = false
+        btnClearDraw.isHidden = false
+        drawingView.isUserInteractionEnabled = true
+    }
+    @IBAction func onClickFilters(_ sender: Any) {
+        btnUndoDraw.isHidden = true
+        btnClearDraw.isHidden = true
+        drawingView.isUserInteractionEnabled = false
+        editOptionView.isHidden = true
+        cvFilters.isHidden = false
+        btnCancel.isHidden = false
+    }
+    
+    @IBAction func onClickEmojis(_ sender: Any) {
+        btnUndoDraw.isHidden = true
+        btnClearDraw.isHidden = true
+        drawingView.isUserInteractionEnabled = false
+        showStickerView()
+    }
+    
+    @IBAction func onClickText(_ sender: Any) {
+        txtDesc.isHidden = false
+        txtDesc.isUserInteractionEnabled = true
+        txtDesc.becomeFirstResponder()
+        txtDesc.font = .setFont(type: .Bold, size: 30)
+        btnUndoDraw.isHidden = true
+        btnClearDraw.isHidden = true
+        drawingView.isUserInteractionEnabled = false
+    }
+    
+    @IBAction func onClickFrames(_ sender: Any) {
+        cvCollage.isHidden = false
+//        imgEdit.isHidden = true
+        collageView.isHidden = false
+        btnUndoDraw.isHidden = true
+        btnClearDraw.isHidden = true
+        drawingView.isUserInteractionEnabled = false
+        collageView.delegate = self
+     
+//        showImagePicker()
+//        self.picker = NohanaImagePickerController() // recreate picker to apply new config
+//           self.picker.delegate = self
+//
+//           //  Set configuration BEFORE presenting
+//           picker.maximumNumberOfSelection = 4
+//           picker.numberOfColumnsInPortrait = 4
+//           picker.numberOfColumnsInLandscape = 3
+//           picker.shouldShowMoment = true
+//           picker.shouldShowEmptyAlbum = true
+//           picker.canPickAsset = { asset in return true }
+//
+//           //  Present AFTER configuration
+//           present(self.picker, animated: true, completion: nil)
+//--------------------------------------------------------------------------------------------------------------------------------------------
+//        collageView.horizontalfactors = [[2,1],[1,2],[1,1]] //optional
+//        collageView.verticalFactors = [1,1,1] //optional
+//        collageView.padding = 10 //optional
+//        collageView.layer.cornerRadius = 10 //optional
+////        collageView.borderWidth = 3 //optional
+//
+//        let image1 = ABImage(image: UIImage(named: "Jessica")!)
+//        let image2 = ABImage(image: UIImage(named: "Micheal")!)
+//        let image3 = ABImage(image: UIImage(named: "Jessica")!)
+//        let image4 = ABImage(image: UIImage(named: "Micheal")!)
+//        let image5 = ABImage(image: UIImage(named: "Rectangle 2535")!)
+//        let image6 = ABImage(image: UIImage(named: "Rectangle 2535")!)
+//        collageView.media = [[image5,image6,image2]]
+////                             [image5,image6,image2],
+////                             [image5,image6,image2]]
+//
+//        collageView.setUserInteraction(enabled: true) //optional
+       
+    }
+     @IBAction func onClickDoneOfFilters(_ sender: Any) {
+         btnUndoDraw.isHidden = true
+         drawingView.isUserInteractionEnabled = false
+         editOptionView.isHidden = false
+         cvFilters.isHidden = true
+         btnCancel.isHidden = true
+     }
+    @IBAction func onClickClearDraw(_ sender: Any) {
+        btnUndoDraw.isHidden = false
+        drawingView.isUserInteractionEnabled = true
+        btnClearDraw.isHidden = false
+        drawingView.clear()
+    }
+    @IBAction func onClickUndoDraw(_ sender: Any) {
+        btnClearDraw.isHidden = false
+        drawingView.isUserInteractionEnabled = true
+        drawingView.undo()
+    }
+}
+//MARK: abcollageview
+extension EditImageVC: ABCollageViewDelegate{
+    func imageTapped(index: Int, images: [ABCollage.ABImage]) {
+        print("Tapped image index \(index)")
+    }
+}
+/*
+  CollageView
+  pod 'ImagesView'
+  pod 'SwiftPhotoGallery'
+  https://www.kodeco.com/21959913-uicollectionview-tutorial-headers-selection-and-reordering/page/4
+  */
+ 
