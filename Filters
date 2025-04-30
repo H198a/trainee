@@ -80,3 +80,38 @@ extension ViewController: UICollectionViewDataSource, UICollectionViewDelegate, 
         return CGSize(width: 80, height: 100)
     }
 }
+func getProductData(){
+     SwiftLoader.show(title: "Loading...", animated: true)
+     let url = APIUrls.productBaseUrl
+//        AF.request("https://api.restful-api.dev/objects").response{ response in
+//            if let data = response.data{
+//                do{
+//                    let userResponse = try JSONDecoder().decode([Product].self, from: data)
+//                    self.arrProducts.append(contentsOf: userResponse)
+//                    DispatchQueue.main.async{
+//                        SwiftLoader.hide()
+//                        self.productVc?.cvProduct.reloadData()
+//                    }
+//                } catch let err{
+//                    print("error----------------------------",err.localizedDescription)
+//                }
+//            }
+//        }
+ App Transport Security Settings
+     APIManager.shared.request(url: url, method: .get) { response in
+         switch response{
+         case .success(let result):
+             self.arrProducts.append(result as! Product)
+             DispatchQueue.main.async{
+                 SwiftLoader.hide()
+                 self.productVc?.cvProduct.reloadData()
+             }
+         case .failure(let err):
+             print("err-----------",err)
+         }
+     }
+ }
+ err----------- sessionTaskFailed(error: Error Domain=NSURLErrorDomain Code=-1200 "An SSL error has occurred and a secure connection to the server cannot be made." UserInfo={NSErrorFailingURLStringKey=https://api.restful-api.dev/objects, NSLocalizedRecoverySuggestion=Would you like to connect to the server anyway?, _kCFStreamErrorDomainKey=3, _NSURLErrorFailingURLSessionTaskErrorKey=LocalDataTask <1885EC08-2C9A-44C9-A02E-42402181C664>.<1>, _NSURLErrorRelatedURLSessionTaskErrorKey=(
+     "LocalDataTask <1885EC08-2C9A-44C9-A02E-42402181C664>.<1>"
+ ), NSLocalizedDescription=An SSL error has occurred and a secure connection to the server cannot be made., NSErrorFailingURLKey=https://api.restful-api.dev/objects, NSUnderlyingError=0x600000dd7120 {Error Domain=kCFErrorDomainCFNetwork Code=-1200 "(null)" UserInfo={_kCFStreamPropertySSLClientCertificateState=0, _kCFNetworkCFStreamSSLErrorOriginalValue=-9860, _kCFStreamErrorDomainKey=3, _kCFStreamErrorCodeKey=-9860, _NSURLErrorNWPathKey=satisfied (Path is satisfied), interface: en0}}, _kCFStreamErrorCodeKey=-9860})
+*/
