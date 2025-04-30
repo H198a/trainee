@@ -165,20 +165,48 @@ func request(url: String, method: HTTPMethod, completion: @escaping (Result<Any,
 }
 
 
-
-
-<key>NSAppTransportSecurity</key>
-<dict>
-    <key>NSExceptionDomains</key>
-    <dict>
-        <key>restful-api.dev</key>
-        <dict>
-            <key>NSIncludesSubdomains</key>
-            <true/>
-            <key>NSTemporaryExceptionAllowsInsecureHTTPLoads</key>
-            <true/>
-            <key>NSTemporaryExceptionMinimumTLSVersion</key>
-            <string>TLSv1.0</string>
-        </dict>
-    </dict>
-</dict>
+ func getProductData() {
+     SwiftLoader.show(title: "Loading...", animated: true)
+     let url = APIUrls.productBaseUrl
+     
+     APIManager.shared.request(url: url, method: .get) { response in
+         switch response {
+         case .success(let result):
+             if let productList = result as? [Product] {
+                 self.arrProducts.append(contentsOf: productList)
+                 DispatchQueue.main.async {
+                     SwiftLoader.hide()
+                     self.productVc?.cvProduct.reloadData()
+                 }
+             } else {
+                 print("Failed to cast result as [Product]")
+                 SwiftLoader.hide()
+             }
+         case .failure(let err):
+             print("err-----------", err)
+             SwiftLoader.hide()
+         }
+     }
+ }
+ func request(
+     url: String,
+     method: HTTPMethod,
+     parameters: [String: Any]? = nil,
+     headers: HTTPHeaders? = nil,
+     completion: @escaping (Result<Any, Error>) -> Void
+ ){
+     AF.request(url,
+                method: method,
+                parameters: parameters,
+                encoding: method == .get ? URLEncoding.default : JSONEncoding.default,
+                headers: headers
+     ).responseJSON { response in
+         switch response.result {
+         case .success(let value):
+             completion(.success(value))
+         case .failure(let error):
+             completion(.failure(error))
+         }
+     }
+ }
+}
