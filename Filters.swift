@@ -111,7 +111,74 @@ func getProductData(){
          }
      }
  }
- err----------- sessionTaskFailed(error: Error Domain=NSURLErrorDomain Code=-1200 "An SSL error has occurred and a secure connection to the server cannot be made." UserInfo={NSErrorFailingURLStringKey=https://api.restful-api.dev/objects, NSLocalizedRecoverySuggestion=Would you like to connect to the server anyway?, _kCFStreamErrorDomainKey=3, _NSURLErrorFailingURLSessionTaskErrorKey=LocalDataTask <1885EC08-2C9A-44C9-A02E-42402181C664>.<1>, _NSURLErrorRelatedURLSessionTaskErrorKey=(
+ err----------- sessionTaskFailed(error: Error Domain=NSURLErrorDomain Code=-1200 "An SSL error has occurred and a secure connection to the server cannot be made." UserInfo={NSErrorFailingURLStringKey=https://api.restful-api.dev/objects, 
+     NSLocalizedRecoverySuggestion=Would you like to connect to the server anyway?, _kCFStreamErrorDomainKey=3, _NSURLErrorFailingURLSessionTaskErrorKey=LocalDataTask <1885EC08-2C9A-44C9-A02E-42402181C664>.<1>, _NSURLErrorRelatedURLSessionTaskErrorKey=(
      "LocalDataTask <1885EC08-2C9A-44C9-A02E-42402181C664>.<1>"
- ), NSLocalizedDescription=An SSL error has occurred and a secure connection to the server cannot be made., NSErrorFailingURLKey=https://api.restful-api.dev/objects, NSUnderlyingError=0x600000dd7120 {Error Domain=kCFErrorDomainCFNetwork Code=-1200 "(null)" UserInfo={_kCFStreamPropertySSLClientCertificateState=0, _kCFNetworkCFStreamSSLErrorOriginalValue=-9860, _kCFStreamErrorDomainKey=3, _kCFStreamErrorCodeKey=-9860, _NSURLErrorNWPathKey=satisfied (Path is satisfied), interface: en0}}, _kCFStreamErrorCodeKey=-9860})
+ ), NSLocalizedDescription=An SSL error has occurred and a secure connectio
+    n to the server cannot be made., NSErrorFailingURLKey=https://api.restful-api.dev/objects, NSUnderlyingError=0x600000dd7120 {Error Domain=kCFErrorDomainCFNetwork Code=-1200 "(null)" 
+    UserInfo={_kCFStreamPropertySSLClientCertificateState=0, _kCFNetworkCFStreamSSLErrorOriginalValue=-9860, _kCFStreamErrorDomainKey=3, _kCFStreamErrorCodeKey=-9860, _NSURLErrorNWPathKey=satisfied (Path is satisfied), interface: en0}}, _kCFStreamErrorCodeKey=-9860})
 */
+
+
+
+
+
+func getProductData() {
+    SwiftLoader.show(title: "Loading...", animated: true)
+    let url = APIUrls.productBaseUrl
+    
+    APIManager.shared.request(url: url, method: .get) { response in
+        switch response {
+        case .success(let result):
+            if let productList = result as? [Product] {
+                self.arrProducts.append(contentsOf: productList)
+                DispatchQueue.main.async {
+                    SwiftLoader.hide()
+                    self.productVc?.cvProduct.reloadData()
+                }
+            } else {
+                print("Failed to cast result as [Product]")
+                SwiftLoader.hide()
+            }
+        case .failure(let err):
+            print("err-----------", err)
+            SwiftLoader.hide()
+        }
+    }
+}
+
+
+func request(url: String, method: HTTPMethod, completion: @escaping (Result<Any, Error>) -> Void) {
+    AF.request(url, method: method).responseData { response in
+        switch response.result {
+        case .success(let data):
+            do {
+                let decodedData = try JSONDecoder().decode([Product].self, from: data)
+                completion(.success(decodedData))
+            } catch {
+                completion(.failure(error))
+            }
+        case .failure(let error):
+            completion(.failure(error))
+        }
+    }
+}
+
+
+
+
+<key>NSAppTransportSecurity</key>
+<dict>
+    <key>NSExceptionDomains</key>
+    <dict>
+        <key>restful-api.dev</key>
+        <dict>
+            <key>NSIncludesSubdomains</key>
+            <true/>
+            <key>NSTemporaryExceptionAllowsInsecureHTTPLoads</key>
+            <true/>
+            <key>NSTemporaryExceptionMinimumTLSVersion</key>
+            <string>TLSv1.0</string>
+        </dict>
+    </dict>
+</dict>
