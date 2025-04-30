@@ -210,3 +210,30 @@ func request(url: String, method: HTTPMethod, completion: @escaping (Result<Any,
      }
  }
 }
+
+
+
+func getProductData() {
+    SwiftLoader.show(title: "Loading...", animated: true)
+    let url = APIUrls.productBaseUrl
+
+    APIManager.shared.request(url: url, method: .get) { response in
+        switch response {
+        case .success(let data):
+            do {
+                let productList = try JSONDecoder().decode([Product].self, from: data)
+                self.arrProducts.append(contentsOf: productList)
+                DispatchQueue.main.async {
+                    SwiftLoader.hide()
+                    self.productVc?.cvProduct.reloadData()
+                }
+            } catch {
+                print("Decoding error:", error)
+                SwiftLoader.hide()
+            }
+        case .failure(let err):
+            print("Request error:", err)
+            SwiftLoader.hide()
+        }
+    }
+}
