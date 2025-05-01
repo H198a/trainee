@@ -151,3 +151,126 @@ struct FilterData {
 protocol FilterDelegate: AnyObject {
     func didApplyFilter(_ filter: FilterData)
 }
+
+
+
+ import UIKit
+
+ class DetailVC: UIViewController {
+ //MARK: Outlet and Variable Declaration
+     @IBOutlet weak var cvMeasure: UICollectionView!
+     @IBOutlet weak var lblSourceName: UILabel!
+     @IBOutlet weak var lblDesc: UILabel!
+     @IBOutlet weak var lblDatasetName: UILabel!
+     @IBOutlet weak var lblLink: UILabel!
+     @IBOutlet weak var lblId: UILabel!
+     @IBOutlet weak var lblTopic: UILabel!
+     @IBOutlet weak var lblSubtopic: UILabel!
+     var viewModel = PostsViewModel()
+
+     override func viewDidLoad() {
+         super.viewDidLoad()
+         viewModel.detailVC = self
+         setUP()
+         viewModel.fetchProductData()
+     }
+ }
+ //MARK: SetUp UI
+ extension DetailVC{
+     func setUP(){
+         let nibName = UINib(nibName: "DetailCell", bundle: nil)
+         cvMeasure.register(nibName, forCellWithReuseIdentifier: "DetailCell")
+     }
+ }
+ //MARK: Custom Funcation
+ extension DetailVC{
+     func updateDetailLabels(with annotations: Annotations) {
+         lblSourceName.text = annotations.sourceName
+         lblDesc.text = annotations.sourceDescription
+         lblDatasetName.text = annotations.datasetName
+         lblLink.text = annotations.datasetLink
+         lblId.text = annotations.tableID
+         lblTopic.text = annotations.topic
+         lblSubtopic.text = annotations.subtopic
+     }
+ }
+
+ //MARK: UICollectionViewDataSource, UICollectionViewDelegate
+ extension DetailVC: UICollectionViewDataSource, UICollectionViewDelegate{
+     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
+         let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "DetailCell", for: indexPath) as! DetailCell
+         let products = viewModel.arrSource[indexPath.item]
+         cell.lblMeasure.text = products.name
+         return cell
+     }
+     
+     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
+         print("counts--------",viewModel.arrSource.count)
+         return viewModel.arrSource.count
+     }
+ }
+ //MARK: Click Events
+ extension DetailVC{
+     @IBAction func onClickBack(_ sender: Any) {
+         navigationController?.popViewController(animated: true)
+     }
+ }
+
+ 
+ class PostsViewModel {
+     static let shared = PostsViewModel()
+     weak var detailVC: DetailVC?
+     var arrProducts: [Dataa] = []
+     var arrSource: [Source] = []
+ 
+    func fetchProductData() {
+     SwiftLoader.show(title: "Loading...", animated: true)
+     let url = APIUrls.productBaseUrl
+
+     APIManager.shared.request(url: url, method: .get) { response in
+         switch response {
+         case .success(let data):
+             do {
+                 guard let jsonDict = data as? [String: Any] else {
+                     print("Invalid JSON structure")
+                     return
+                 }
+
+                 let jsonData = try JSONSerialization.data(withJSONObject: jsonDict)
+                 let productList = try JSONDecoder().decode(Productt.self, from: jsonData)
+                 print("responseee----------------",productList)
+
+                 self.arrSource = productList.source
+                 
+             } catch {
+                 print("Decoding error:", error)
+             }
+         case .failure(let error):
+             print("Request error:", error)
+         }
+       }
+    }
+ }
+ struct Source: Codable {
+     let measures: [String]
+     let annotations: Annotations
+     let name: String
+     let substitutions: [JSONAny]
+ }
+
+ // MARK: - Annotations
+ struct Annotations: Codable {
+     let sourceName, sourceDescription, datasetName: String
+     let datasetLink: String
+     let tableID, topic, subtopic: String
+
+     enum CodingKeys: String, CodingKey {
+         case sourceName = "source_name"
+         case sourceDescription = "source_description"
+         case datasetName = "dataset_name"
+         case datasetLink = "dataset_link"
+         case tableID = "table_id"
+         case topic, subtopic
+     }
+ }
+ in this code i am not getting data into labels and also not getting data into collectionview's label
