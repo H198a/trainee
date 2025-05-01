@@ -91,3 +91,78 @@ class EditVC: UIViewController {
         }
     }
 }
+
+
+
+
+
+ @IBAction func onClickAddProduct(_ sender: Any) {
+     let productDetailVC = storyboard?.instantiateViewController(withIdentifier: "ProductDetailVC") as! ProductDetailVC
+     productDetailVC.showBtn = false
+     productDetailVC.currentUserId = self.cuurentUserId
+     productDetailVC.completionHandler = { newProduct in
+         self.viewModel.arrProducts.insert(newProduct, at: 0)
+         self.cvProduct.reloadData()
+         DispatchQueue.main.async{
+             self.cvProduct.setContentOffset(.zero, animated: true)
+         }
+     }
+     navigationController?.pushViewController(productDetailVC, animated: true)
+ }
+ @IBAction func onClickAddAndUpdate(_ sender: Any) {
+     guard let id = txtID.text, !id.isEmpty else {
+         print("something wrong in id")
+         return
+     }
+     guard let nation = txtIdYear.text, !nation.isEmpty else{//year
+         print("something wrong in nation")
+         return
+     }
+     guard let idYear = txtNation.text, !idYear.isEmpty else{//nation
+         print("somthing wrong in idyear")
+         return
+     }
+     guard let year = txtYear.text, !year.isEmpty else{
+         print("somethinf wrong in year")
+         return
+     }
+     guard let population = txtPopulation.text, !population.isEmpty else{
+         print("something wrong in population")
+         return
+     }
+     guard let slugNation = txtSlugNation.text, !slugNation.isEmpty else{
+         print("something wrong in slugNation")
+         return
+     }
+     
+     let param: [String: Any] = [
+         "ID Nation": currentUserId as Any,
+         "Nation": nation,
+         "ID Year": idYear,
+         "Year": year,
+         "Population": population,
+         "Slug Nation": slugNation
+     ]
+     let url = APIUrls.productBaseUrl
+     APIManager.shared.request(url: url, method: .post, parameters: param) { result in
+         switch result{
+         case .success(let data):
+             do{
+                 guard let jsonDict = data as? [String: Any] else {
+                     print("Invalid JSON structure")
+                     return
+                 }
+                 let jsonData = try JSONSerialization.data(withJSONObject: jsonDict)
+                 let newProduct = try JSONDecoder().decode(Dataa.self, from: jsonData)
+                 print("responseee----------------",newProduct)
+                 self.completionHandler?(newProduct)
+                 self.navigationController?.popViewController(animated: true)
+             } catch{
+                 print("decoding error",error)
+             }
+         case .failure(let err):
+             print("add error in UserViewModel:=====",err)
+         }
+     }
+ }
+}
