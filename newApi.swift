@@ -1,3 +1,7 @@
+
+
+
+
 extension ProductDetailVC{
     @IBAction func onClickBack(_ sender: Any) {
         navigationController?.popViewController(animated: true)
@@ -541,3 +545,93 @@ extension ProductDetailVC{
  }
 in this code issue is i have button for addProduct and on for updateProduct but ad Product button is in productVC and UpdateProduct 
 button is in ProductDetailVC so hw can i update the product based on their product id
+
+
+
+func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
+    selectedCategoryIndex = indexPath.item
+    let selectedProduct = viewModel.arrProducts[indexPath.item]
+    let details = storyboard?.instantiateViewController(withIdentifier: "ProductDetailVC") as! ProductDetailVC
+    details.productData = selectedProduct
+    details.showBtn = true
+    details.completionHandler = { updatedProduct in
+        if let index = self.viewModel.arrProducts.firstIndex(where: { $0.idNation == updatedProduct.idNation }) {
+            self.viewModel.arrProducts[index] = updatedProduct
+            self.cvProduct.reloadItems(at: [IndexPath(item: index, section: 0)])
+        }
+    }
+    navigationController?.pushViewController(details, animated: true)
+}
+@IBAction func onClickAddAndUpdate(_ sender: Any) {
+    let id = productData?.idNation ?? "\(Int.random(in: 1000...9999))US"
+    let population: Int = Int.random(in: 100_000_000...999_999_999)
+    
+    guard let idYear = txtYear.text, !idYear.isEmpty else {
+        showAlert(message: "Please enter Year")
+        return
+    }
+    
+    guard let year = txtNation.text, !year.isEmpty else {
+        showAlert(message: "Please enter Nation")
+        return
+    }
+
+    let updatedProduct = Dataa(idNation: id, nation: year, idYear: Int(idYear) ?? 2020, year: idYear, population: population, slugNation: year)
+
+    completionHandler?(updatedProduct)
+    self.navigationController?.popViewController(animated: true)
+    
+    if productData != nil {
+        showAlert(message: "Product updated successfully!")
+    } else {
+        showAlert(message: "Product added successfully!")
+    }
+}
+
+
+
+
+
+@IBAction func onClickAddAndUpdate(_ sender: Any) {
+    let id = productData?.idNation ?? "\(Int.random(in: 1000...9999))US"
+    let population: Int = Int(txtPopulation.text ?? "") ?? Int.random(in: 100_000_000...999_999_999)
+
+    guard let idYear = txtYear.text, !idYear.isEmpty else {
+        print("Year is empty")
+        return
+    }
+    guard let nation = txtNation.text, !nation.isEmpty else {
+        print("Nation is empty")
+        return
+    }
+
+    let updatedProduct = Dataa(
+        idNation: id,
+        nation: nation,
+        idYear: Int(idYear) ?? 2020,
+        year: idYear,
+        population: population,
+        slugNation: nation
+    )
+
+    // Send the updated product back
+    completionHandler?(updatedProduct)
+    self.navigationController?.popViewController(animated: true)
+}
+func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
+    selectedCategoryIndex = indexPath.item
+    let selectedProduct = viewModel.arrProducts[indexPath.item]
+    let details = storyboard?.instantiateViewController(withIdentifier: "ProductDetailVC") as! ProductDetailVC
+    details.productData = selectedProduct
+    details.showBtn = true
+
+    // Update based on population
+    details.completionHandler = { updatedProduct in
+        if let index = self.viewModel.arrProducts.firstIndex(where: { $0.population == updatedProduct.population }) {
+            self.viewModel.arrProducts[index] = updatedProduct
+            self.cvProduct.reloadData()
+        }
+    }
+
+    navigationController?.pushViewController(details, animated: true)
+}
