@@ -635,3 +635,109 @@ func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPat
 
     navigationController?.pushViewController(details, animated: true)
 }
+
+
+
+
+//sunday
+import UIKit
+
+class ProductVC: UIViewController {
+//MARK: Outlet and Variable Declaration
+    @IBOutlet weak var cvProduct: UICollectionView!
+    var viewModel = UserViewModel()
+    var selectedCategoryIndex: Int? = nil
+    var currentUserId: String?
+    
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        setUP()
+        viewModel.productVC = self
+        viewModel.getProductData()
+    }
+    // Do any additional setup after loading the view.
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        navigationController?.setNavigationBarHidden(true, animated: true)
+    }
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        navigationController?.setNavigationBarHidden(true, animated: true)
+    }
+}
+//MARK: SetUp UI
+extension ProductVC{
+    func setUP(){
+        let nibName = UINib(nibName: "ProductCell", bundle: nil)
+        cvProduct.register(nibName, forCellWithReuseIdentifier: "ProductCell")
+    }
+}
+//MARK: Custom funcations
+extension ProductVC{
+    
+}
+//MARK: UICollectionViewDataSource, UICollectionViewDelegate
+extension ProductVC: UICollectionViewDataSource, UICollectionViewDelegate,UICollectionViewDelegateFlowLayout {
+    func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
+        return viewModel.arrProducts.count
+    }
+    
+    func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
+        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "ProductCell", for: indexPath) as! ProductCell
+        let products = viewModel.arrProducts[indexPath.item]
+        cell.lblNation.text = "\(products.nation)"
+        cell.lblYear.text = products.year
+        cell.lblIdYear.text = "\(products.idYear)"
+        cell.lblPopulation.text = "\(products.population)"
+        cell.lblSlugNation.text = "\(products.slugNation)"
+        self.currentUserId = products.idNation
+        return cell
+    }
+    func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
+        selectedCategoryIndex = indexPath.item
+        let selectedProduct = viewModel.arrProducts[indexPath.item]
+        let details = storyboard?.instantiateViewController(withIdentifier: "ProductDetailVC") as! ProductDetailVC
+        details.productData = selectedProduct
+        details.showBtn = true
+        
+        details.completionHandler = { updatedProduct in
+            if let index = self.viewModel.arrProducts.firstIndex(where: { $0.population == updatedProduct.population }) {
+                self.viewModel.arrProducts[index] = updatedProduct
+                self.cvProduct.reloadData()
+            }
+        }
+        navigationController?.pushViewController(details, animated: true)
+    }
+    func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
+        return CGSize(width: (self.cvProduct.frame.width - 20) / 2, height: 124)
+    }
+}
+//MARK: Click Events
+extension ProductVC {
+    @IBAction func onClickAddProduct(_ sender: Any) {
+        let productDetailVC = storyboard?.instantiateViewController(withIdentifier: "ProductDetailVC") as! ProductDetailVC
+            productDetailVC.showBtn = false
+            
+            productDetailVC.completionHandler = { newProduct in
+                // ✅ Check if product already exists (by unique population)
+                if let index = self.viewModel.arrProducts.firstIndex(where: { $0.population == newProduct.population }) {
+                    self.viewModel.arrProducts[index] = newProduct // 🔁 UPDATE
+                } else {
+                    self.viewModel.arrProducts.insert(newProduct, at: 0) // ➕ ADD
+                }
+
+                self.cvProduct.reloadData()
+                DispatchQueue.main.async {
+                    self.cvProduct.setContentOffset(.zero, animated: true)
+                }
+            }
+
+            navigationController?.pushViewController(productDetailVC, animated: true)
+
+    }
+    @IBAction func onClickback(_ sender: Any) {
+        navigationController?.popViewController(animated: true)
+    }
+}
+
+
