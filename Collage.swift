@@ -469,3 +469,21 @@ func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPat
          case slugNation = "Slug Nation"
      }
  }
+
+
+
+var originalPopulation: Int?
+details.productData = selectedProduct
+details.originalPopulation = selectedProduct.population
+
+
+details.completionHandler = { updatedProduct in
+    let matchPopulation = details.originalPopulation ?? updatedProduct.population
+    if let index = self.viewModel.arrProducts.firstIndex(where: { $0.population == matchPopulation }) {
+        self.viewModel.arrProducts[index] = updatedProduct
+        collectionView.reloadData()
+        self.cvProduct.reloadItems(at: [IndexPath(item: index, section: 0)])
+    } else {
+        print("population not found")
+    }
+}
