@@ -331,3 +331,37 @@ let deleteAction = UITableViewRowAction(style: .default, title: "Delete", handle
  deleteAction.backgroundColor = UIColor.red
  
  Invalid conversion from throwing function of type '(UIAlertAction) throws -> Void' to non-throwing function type '(UIAlertAction) -> Void'
+
+
+
+
+
+let deleteAction = UITableViewRowAction(style: .default, title: "Delete") { (action, indexPath) in
+    print("Delete tapped")
+    let taskID = self.tasks[indexPath.row].id
+    guard let appDelegate = UIApplication.shared.delegate as? AppDelegate else { return }
+    let context = appDelegate.persistentContainer.viewContext
+
+    let deleteReq: NSFetchRequest<TaskEntity> = TaskEntity.fetchRequest()
+    deleteReq.predicate = NSPredicate(format: "taskID == %@", taskID as CVarArg)
+
+    let alert = UIAlertController(title: "Delete", message: "Do you want to delete this product?", preferredStyle: .alert)
+    alert.addAction(UIAlertAction(title: "Cancel", style: .cancel, handler: nil))
+    alert.addAction(UIAlertAction(title: "Delete", style: .destructive, handler: { _ in
+        do {
+            let results = try context.fetch(deleteReq)
+            if let taskToDelete = results.first {
+                context.delete(taskToDelete)
+                try context.save()
+                self.fetchTasks()
+                self.tblTasks.deleteRows(at: [indexPath], with: .none)
+                print("Task deleted successfully")
+            }
+        } catch {
+            print("Failed to delete task: \(error)")
+        }
+    }))
+
+    self.present(alert, animated: true, completion: nil)
+}
+deleteAction.backgroundColor = UIColor.red
