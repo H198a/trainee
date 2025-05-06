@@ -136,3 +136,111 @@ func application(_ application: UIApplication, didFinishLaunchingWithOptions lau
     IQKeyboardManager.shared.toolbarDoneBarButtonItemText = "Done"
     return true
 }
+
+
+
+import UIKit
+import CoreData
+
+class ViewController: UIViewController {
+    //MARK: Outlet and Variable Declaration
+    @IBOutlet weak var tblTasks: UITableView!
+    @IBOutlet weak var lblNoTask: UILabel!
+    
+    var tasks: [(title: String, startDate: Date, endDate: Date, status: String, desc: String, assignTo: String)] = []
+    
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        setUP()
+    }
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        fetchTasks()
+        navigationController?.setNavigationBarHidden(true, animated: true)
+    }
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        navigationController?.setNavigationBarHidden(true, animated: true)
+    }
+}
+//MARK: Setup UI
+extension ViewController{
+    func setUP(){
+        let nibName = UINib(nibName: "TaskCell", bundle: nil)
+        tblTasks.register(nibName, forCellReuseIdentifier: "TaskCell")
+    }
+}
+//MARK: Custom Functions
+extension ViewController{
+    func fetchTasks(){
+        lblNoTask.isHidden = true
+        guard let appDelegate = UIApplication.shared.delegate as? AppDelegate else{return}
+        let context = appDelegate.persistentContainer.viewContext
+        
+        tasks.removeAll()
+        
+        let tasksFetch: NSFetchRequest<TaskEntity> = TaskEntity.fetchRequest()
+        do{
+            let taskResults = try context.fetch(tasksFetch)
+            
+            for taskk in taskResults{
+                let title = taskk.title ?? "no title"
+                let desc = taskk.desc ?? "no desc"
+                let endDate = taskk.endDate ?? Date()
+                let startDate = taskk.startDate ?? Date()
+                let status = taskk.status ?? "no status"
+                let assign = taskk.assignTo ?? "no user assigned"
+                
+                tasks.append((title: title, startDate: startDate, endDate: endDate, status: status, desc: desc, assignTo: assign))
+            }
+            tasks.sort { $0.startDate > $1.startDate }
+            DispatchQueue.main.async{
+                self.tblTasks.reloadData()
+            }
+        } catch{
+            print("Error in fetching tasks-----",error)
+        }
+    }
+}
+//MARK: UITableViewDataSource, UITableViewDelegate
+extension ViewController: UITableViewDataSource, UITableViewDelegate{
+    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+       return tasks.count
+    }
+    
+    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        let cell = tableView.dequeueReusableCell(withIdentifier: "TaskCell", for: indexPath) as! TaskCell
+        let newTask = tasks[indexPath.row]
+        cell.lblTitle.text = newTask.title
+        cell.lblDesc.text = newTask.desc
+        cell.lblStatus.text = newTask.status
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM dd, yyyy"
+        cell.lblDate.text = formatter.string(from: newTask.startDate)
+        
+        return cell
+    }
+     func tableView(_ tableView: UITableView, editActionsForRowAt indexPath: IndexPath) -> [UITableViewRowAction]? {
+
+         // action one
+         let editAction = UITableViewRowAction(style: .default, title: "In Progress", handler: { (action, indexPath) in
+             print("Edit tapped")
+         })
+         editAction.backgroundColor = UIColor.blue
+
+         // action two
+         let deleteAction = UITableViewRowAction(style: .default, title: "Delete", handler: { (action, indexPath) in
+             print("Delete tapped")
+         })
+         deleteAction.backgroundColor = UIColor.red
+
+         return [editAction, deleteAction]
+     }
+}
+//MARK: Click Events
+extension ViewController{
+    @IBAction func onClickAddTasks(_ sender: UIButton) {
+        let addtaskVC = storyboard?.instantiateViewController(withIdentifier: "AddTasksVC") as! AddTasksVC
+        navigationController?.pushViewController(addtaskVC, animated: true)
+    }
+}
