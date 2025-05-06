@@ -297,3 +297,37 @@ func tableView(_ tableView: UITableView, editActionsForRowAt indexPath: IndexPat
 
     return [inProgressAction, deleteAction]
 }
+
+
+
+let deleteAction = UITableViewRowAction(style: .default, title: "Delete", handler: { (action, indexPath) in
+     print("Delete tapped")
+      let taskID = self.tasks[indexPath.row].id
+      guard let appDelegate = UIApplication.shared.delegate as? AppDelegate else{return}
+      let context = appDelegate.persistentContainer.viewContext
+      
+      let deleteReq: NSFetchRequest<TaskEntity> = TaskEntity.fetchRequest()
+      deleteReq.predicate = NSPredicate(format: "taskID == %@", taskID! as CVarArg)
+      do{
+           let alert = UIAlertController(title: "Delete", message: "Do you want to delete this product?", preferredStyle: .alert)
+           alert.addAction(UIAlertAction(title: "Cancel", style: .cancel, handler: nil))
+           alert.addAction(UIAlertAction(title: "Delete", style: .destructive, handler: { _ in
+                let results = try context.fetch(deleteReq)
+                if let taskDelete = results.first{
+                     context.delete(taskDelete)
+                     try context.save()
+                     self.fetchTasks()
+//                        self.tasks.remove(at: indexPath.row)
+                     self.tblTasks.deleteRows(at: [indexPath], with: .none)
+                }
+           }))
+          
+           self.present(alert, animated: true, completion: nil)
+           print("task delete successfully")
+      } catch{
+           print("failed to delete task",error)
+      }
+ })
+ deleteAction.backgroundColor = UIColor.red
+ 
+ Invalid conversion from throwing function of type '(UIAlertAction) throws -> Void' to non-throwing function type '(UIAlertAction) -> Void'
