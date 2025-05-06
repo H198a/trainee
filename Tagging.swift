@@ -244,3 +244,56 @@ extension ViewController{
         navigationController?.pushViewController(addtaskVC, animated: true)
     }
 }
+
+
+
+func tableView(_ tableView: UITableView, editActionsForRowAt indexPath: IndexPath) -> [UITableViewRowAction]? {
+
+    let inProgressAction = UITableViewRowAction(style: .default, title: "In Progress") { (action, indexPath) in
+        let taskID = self.tasks[indexPath.row].id
+
+        guard let appDelegate = UIApplication.shared.delegate as? AppDelegate else { return }
+        let context = appDelegate.persistentContainer.viewContext
+
+        let fetchRequest: NSFetchRequest<TaskEntity> = TaskEntity.fetchRequest()
+        fetchRequest.predicate = NSPredicate(format: "id == %@", taskID as CVarArg)
+
+        do {
+            let results = try context.fetch(fetchRequest)
+            if let taskToUpdate = results.first {
+                taskToUpdate.status = "In Progress"
+                try context.save()
+                print("Status updated to In Progress")
+                self.fetchTasks()
+            }
+        } catch {
+            print("Error updating status: \(error)")
+        }
+    }
+    inProgressAction.backgroundColor = UIColor.blue
+
+    let deleteAction = UITableViewRowAction(style: .default, title: "Delete") { (action, indexPath) in
+        let taskID = self.tasks[indexPath.row].id
+
+        guard let appDelegate = UIApplication.shared.delegate as? AppDelegate else { return }
+        let context = appDelegate.persistentContainer.viewContext
+
+        let fetchRequest: NSFetchRequest<TaskEntity> = TaskEntity.fetchRequest()
+        fetchRequest.predicate = NSPredicate(format: "id == %@", taskID as CVarArg)
+
+        do {
+            let results = try context.fetch(fetchRequest)
+            if let taskToDelete = results.first {
+                context.delete(taskToDelete)
+                try context.save()
+                print("Task deleted")
+                self.fetchTasks()
+            }
+        } catch {
+            print("Error deleting task: \(error)")
+        }
+    }
+    deleteAction.backgroundColor = UIColor.red
+
+    return [inProgressAction, deleteAction]
+}
