@@ -83,4 +83,139 @@ func resetContent() {
 }
 
 
-//in age change type int from string
+class ViewController: UIViewController {
+ @IBOutlet weak var tblTasks: UITableView!
+  var tasks: [TaskSection] = []
+ override func viewDidLoad() {
+     super.viewDidLoad()
+ let nibName = UINib(nibName: "TaskCell", bundle: nil)
+ tblTasks.register(nibName, forCellReuseIdentifier: "TaskCell")
+ }
+ }
+ extension ViewController{
+ 
+ func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+     let selectedUser = tasks[indexPath.section].tasks[indexPath.row]
+ let detailVC = storyboard?.instantiateViewController(withIdentifier: "DetailVC") as! DetailVC
+ detailVC.assignedUsers = selectedUser.assignTo!.components(separatedBy: ",")
+ navigationController?.pushViewController(detailVC, animated: true)
+ }
+ }
+ 
+ class DetailVC: UIViewController {
+ var assignedUsers: [String] = []
+ extension DetailVC{
+ 
+ @IBAction func onClickUpdate(_ sender: Any) {
+     let updateVC = storyboard?.instantiateViewController(withIdentifier: "AddTasksVC") as! AddTasksVC
+ updateVC.ussers = assignedUsers
+ navigationController?.pushViewController(updateVC, animated: true)
+ }
+ }
+ class AddTasksVC: UIViewController {
+ var users: [AssignedUsers] = []
+ var ussers: [String] = []
+ 
+ cvAssignedUsers.register(nibName, forCellWithReuseIdentifier: "AddTaskCell")
+ override func viewDidLoad() {
+     super.viewDidLoad()
+ if isFormEdit{
+     if let task = tasks {
+         txtTitle.text = task.title
+         txtDesc.text = task.desc
+         startDate.date = task.startDate ?? Date()
+         endDate.date = task.endDate ?? Date()
+         
+         // Load assigned users
+         if let userSet = task.assigneUsers as? Set<AssignedUsers> {
+             users = Array(userSet)
+         }
+     }
+     lblHeading.text = "Update Task"
+     btnAddAndUpdate.setTitle("Update", for: .normal)
+ } else{
+     lblHeading.text = "Add Task"
+     txtDesc.text = "Enter Description"
+     txtDesc.textColor = UIColor.lightGray
+ }
+ }
+ }
+ extension AddTasksVC: UICollectionViewDataSource, UICollectionViewDelegate, UICollectionViewDelegateFlowLayout{
+     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
+         print("uaers--------",users.count)
+         return users.count
+     }
+     
+     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
+         let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "AddTaskCell", for: indexPath) as! AddTaskCell
+         cell.lblUser.text = users[indexPath.item].name
+         cell.btnClose.tag = indexPath.item
+         cell.btnClose.addTarget(self, action: #selector(deleteUser), for: .touchUpInside)
+         return cell
+     }
+}
+ extension AddTasksVC{
+ @IBAction func onClickAddTask(_ sender: UIButton) {
+     if validateFields(){
+         
+         if txtDesc.textColor == .lightGray{
+             showAlert(message: "Please enter description")
+         }
+         guard users.count >= 1 else{
+             showAlert(message: "please assign users")
+             return
+         }
+         guard let titlee = txtTitle.text, !titlee.isEmpty else{
+             print("error in title")
+             return
+         }
+         guard let desc = txtDesc.text, !desc.isEmpty else{
+             print("error in desc")
+             return
+         }
+         let assign = users.count
+         let id = "\(Int.random(in: 1000...9999))"
+         let startDate = startDate.date
+         let endDate = endDate.date
+         
+         guard let appDelegate = UIApplication.shared.delegate as? AppDelegate else{
+             return
+         }
+         let context = appDelegate.persistentContainer.viewContext
+         let newTask = ToDoApp.TaskEntity(context: context)
+         if isFormEdit{
+             guard let taskToUpdate = tasks else { return }
+             taskToUpdate.title = txtTitle.text
+             taskToUpdate.desc = txtDesc.text
+             taskToUpdate.endDate = endDate
+             taskToUpdate.startDate = startDate
+             taskToUpdate.assignTo = "\(ussers.count)"
+             taskToUpdate.status = "Open"
+             
+             let taskID = taskToUpdate.taskID ?? UUID().uuidString
+             taskToUpdate.taskID = taskID
+             print("task id....",taskID)
+             do {
+                 try context.save()
+                 print("Task updated successfully:", taskToUpdate)
+                 scheduleNotification(eventName: taskToUpdate.title ?? "", eventDescription: taskToUpdate.desc ?? "", eventDate: taskToUpdate.endDate ?? Date(), notificationID: taskID)
+                 users = []
+                 cvAssignedUsers.reloadData()
+                 navigationController?.popToRootViewController(animated: true)
+                 showAlert(message: "Task updated successfully")
+                 
+             } catch {
+                 print("Failed to update task:", error)
+                 showAlert(message: "Failed to update task.")
+             }
+         }
+       }
+    }
+ }
+ po taskToUpdate.assignTo
+▿ Optional<String>
+  - some : "[<AssignedUsers: 0x60000214ccd0> (entity: AssignedUsers; id: 0xacc9063bd6a52757 <x-coredata://2296F5E2-1DEE-4F46-8D1D-B8FA3B7CF7DB/AssignedUsers/p17>; data: {\n    name = \"30.\";\n    
+taskEntity = \"0xacc9063bd6a12755 <x-coredata://2296F5E2-1DEE-4F46-8D1D-B8FA3B7CF7DB/TaskEntity/p16>\";\n}), <AssignedUsers: 0x600002158960> (entity: AssignedUsers; id: 0x6000002bd6a0 <x-coredata:///AssignedUsers/tC6165DFE-9DD2-4251-B5F8-DECD7F2307252>; 
+data: {\n    name = dfsf;\n    taskEntity = nil;\n})]"
+
+==
