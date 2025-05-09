@@ -1,0 +1,123 @@
+import UIKit
+import AVFoundation
+
+class ReelsVC: UIViewController {
+    
+    // MARK: - Outlets
+    @IBOutlet weak var tblReels: UITableView!
+    
+    // MARK: - Variables
+    var arrVideos: [String] = [
+        "https://www.example.com/video1.mp4",
+        "https://www.example.com/video2.mp4",
+        "https://www.example.com/video3.mp4",
+        "https://www.example.com/video4.mp4",
+        "https://www.example.com/video5.mp4",
+        "https://www.example.com/video6.mp4",
+        "https://www.example.com/video7.mp4",
+        "https://www.example.com/video8.mp4",
+        "https://www.example.com/video9.mp4",
+        "https://www.example.com/video10.mp4"
+    ]
+    
+    // MARK: - Lifecycle
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        setUP()
+    }
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        playVisibleVideo()
+    }
+}
+
+// MARK: - Setup
+extension ReelsVC {
+    func setUP() {
+        tblReels.delegate = self
+        tblReels.dataSource = self
+        tblReels.register(UINib(nibName: "ReelsCell", bundle: nil), forCellReuseIdentifier: "ReelsCell")
+        tblReels.separatorStyle = .none
+        tblReels.isPagingEnabled = true
+    }
+}
+
+// MARK: - TableView DataSource & Delegate
+extension ReelsVC: UITableViewDataSource, UITableViewDelegate {
+    
+    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+        return arrVideos.count
+    }
+
+    func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
+        return UIScreen.main.bounds.height
+    }
+
+    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        let cell = tableView.dequeueReusableCell(withIdentifier: "ReelsCell", for: indexPath) as! ReelsCell
+        cell.configure(with: arrVideos[indexPath.row])
+        return cell
+    }
+
+    func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
+        playVisibleVideo()
+    }
+
+    func playVisibleVideo() {
+        let visibleRect = CGRect(origin: tblReels.contentOffset, size: tblReels.bounds.size)
+        let visiblePoint = CGPoint(x: visibleRect.midX, y: visibleRect.midY)
+        
+        guard let indexPath = tblReels.indexPathForRow(at: visiblePoint) else { return }
+        
+        for cell in tblReels.visibleCells {
+            if let reelCell = cell as? ReelsCell {
+                reelCell.pauseVideo()
+            }
+        }
+
+        if let cell = tblReels.cellForRow(at: indexPath) as? ReelsCell {
+            cell.playVideo()
+        }
+    }
+}
+
+
+
+import UIKit
+import AVFoundation
+
+class ReelsCell: UITableViewCell {
+    
+    var player: AVPlayer?
+    var playerLayer: AVPlayerLayer?
+
+    override func prepareForReuse() {
+        super.prepareForReuse()
+        player?.pause()
+        playerLayer?.removeFromSuperlayer()
+        player = nil
+        playerLayer = nil
+    }
+
+    func configure(with urlStr: String) {
+        guard let url = URL(string: urlStr) else { return }
+        
+        player = AVPlayer(url: url)
+        playerLayer = AVPlayerLayer(player: player)
+        playerLayer?.frame = contentView.bounds
+        playerLayer?.videoGravity = .resizeAspectFill
+
+        if let layer = playerLayer {
+            contentView.layer.addSublayer(layer)
+        }
+    }
+
+    func playVideo() {
+        player?.play()
+    }
+
+    func pauseVideo() {
+        player?.pause()
+    }
+}
