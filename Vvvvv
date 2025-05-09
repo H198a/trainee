@@ -1,6 +1,82 @@
 import UIKit
 import AVFoundation
 
+class ReelsCell: UITableViewCell {
+
+    private var player: AVPlayer?
+    private var playerLayer: AVPlayerLayer?
+    private var videoURL: URL?
+    private var playerLooperObserver: NSObjectProtocol?
+
+    override func prepareForReuse() {
+        super.prepareForReuse()
+        pauseVideo()
+    }
+
+    func configure(with urlStr: String) {
+        guard let url = URL(string: urlStr), url != videoURL else { return }
+
+        videoURL = url
+
+        // Clean up existing player before creating new one
+        pauseVideo()
+
+        player = AVPlayer(url: url)
+        player?.isMuted = true
+
+        // Add looping behavior
+        addLoopObserver()
+
+        playerLayer = AVPlayerLayer(player: player)
+        playerLayer?.frame = contentView.bounds
+        playerLayer?.videoGravity = .resizeAspectFill
+
+        if let layer = playerLayer {
+            contentView.layer.addSublayer(layer)
+        }
+    }
+
+    func playVideo() {
+        player?.play()
+    }
+
+    func pauseVideo() {
+        player?.pause()
+        player?.replaceCurrentItem(with: nil)
+        playerLayer?.removeFromSuperlayer()
+        player = nil
+        playerLayer = nil
+
+        // Remove observer
+        if let observer = playerLooperObserver {
+            NotificationCenter.default.removeObserver(observer)
+            playerLooperObserver = nil
+        }
+    }
+
+    private func addLoopObserver() {
+        guard let player = player else { return }
+
+        playerLooperObserver = NotificationCenter.default.addObserver(
+            forName: .AVPlayerItemDidPlayToEndTime,
+            object: player.currentItem,
+            queue: .main
+        ) { [weak self] _ in
+            self?.player?.seek(to: .zero)
+            self?.player?.play()
+        }
+    }
+}
+
+
+
+
+
+
+
+import UIKit
+import AVFoundation
+
 class ReelsVC: UIViewController {
     
     // MARK: - Outlets
