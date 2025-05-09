@@ -197,3 +197,159 @@ class ReelsCell: UITableViewCell {
         player?.pause()
     }
 }
+
+--------
+import UIKit
+import AVFoundation
+import SwiftLoader
+
+class ReelsVC: UIViewController {
+    //MARK: Outlet and Variable Declaration
+    @IBOutlet weak var tblReels: UITableView!
+    
+    var arrVideoUrl: [String] = [
+        "https://videos.pexels.com/video-files/1578318/1578318-hd_1920_1080_30fps.mp4",
+        "https://videos.pexels.com/video-files/4937376/4937376-sd_360_640_24fps.mp4",
+        "https://videos.pexels.com/video-files/6624888/6624888-sd_360_640_30fps.mp4",
+        "https://videos.pexels.com/video-files/8859849/8859849-sd_360_640_25fps.mp4",
+        "https://videos.pexels.com/video-files/4678261/4678261-sd_360_640_25fps.mp4",
+        "https://videos.pexels.com/video-files/4434242/4434242-sd_360_640_24fps.mp4",
+        "https://videos.pexels.com/video-files/4434150/4434150-sd_360_640_30fps.mp4",
+        "https://videos.pexels.com/video-files/5829173/5829173-sd_360_640_24fps.mp4",
+        "https://videos.pexels.com/video-files/4057150/4057150-sd_506_960_25fps.mp4",
+        "https://videos.pexels.com/video-files/3992630/3992630-sd_506_960_25fps.mp4"
+    ]
+    
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        setUP()
+    }
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        playVisibleVideo()
+    }
+}
+//MARK: Setup UI
+extension ReelsVC{
+    func setUP(){
+        let nibName = UINib(nibName: "ReelsCell", bundle: nil)
+        tblReels.register(nibName, forCellReuseIdentifier: "ReelsCell")
+        tblReels.isUserInteractionEnabled = true
+    }
+}
+//MARK: Custom Functions
+extension ReelsVC{
+    func playVisibleVideo() {
+     
+        let visibleRect = CGRect(origin: tblReels.contentOffset, size: tblReels.bounds.size)
+        let visiblePoint = CGPoint(x: visibleRect.midX, y: visibleRect.midY)
+        
+        guard let indexPath = tblReels.indexPathForRow(at: visiblePoint) else { return }
+        if let cell = tblReels.cellForRow(at: indexPath) as? ReelsCell {
+            cell.playVideo()
+        }
+        SwiftLoader.hide()
+    }
+}
+//MARK: UITableViewDataSource, UITableViewDelegate
+extension ReelsVC: UITableViewDataSource, UITableViewDelegate{
+    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+        SwiftLoader.show(title: "Loading", animated: true)
+        return arrVideoUrl.count
+    }
+    
+    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        SwiftLoader.hide()
+        let cell = tableView.dequeueReusableCell(withIdentifier: "ReelsCell", for: indexPath) as! ReelsCell
+        cell.configure(with: arrVideoUrl[indexPath.row])
+               return cell
+    }
+    func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
+        return tblReels.frame.height
+    }
+    
+    func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
+        self.playVisibleVideo()
+    }
+    func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        self.playVisibleVideo()
+    }
+}
+import UIKit
+import AVFoundation
+import SwiftLoader
+
+class ReelsCell: UITableViewCell {
+//MARK: Outlet and Variable Declaration
+    @IBOutlet weak var mainView: UIView!
+    @IBOutlet weak var imgReels: UIImageView!
+    
+    private var player: AVPlayer?
+    private var playerLayer: AVPlayerLayer?
+    private var videoURL: URL?
+    private var playerLooperObserver: NSObjectProtocol?
+
+    override func prepareForReuse() {
+        super.prepareForReuse()
+        pauseVideo()
+    }
+
+    func configure(with urlStr: String) {
+        guard let url = URL(string: urlStr), url != videoURL else { return }
+
+        videoURL = url
+
+        // Clean up existing player before creating new one
+        pauseVideo()
+
+        player = AVPlayer(url: url)
+        player?.isMuted = true
+
+        // Add looping behavior
+        addLoopObserver()
+
+        playerLayer = AVPlayerLayer(player: player)
+        playerLayer?.frame = contentView.bounds
+        playerLayer?.videoGravity = .resizeAspectFill
+
+        if let layer = playerLayer {
+            contentView.layer.addSublayer(layer)
+        }
+    }
+
+    func playVideo() {
+        player?.play()
+    }
+
+    func pauseVideo() {
+        player?.pause()
+        player?.replaceCurrentItem(with: nil)
+        playerLayer?.removeFromSuperlayer()
+        player = nil
+        playerLayer = nil
+
+        // Remove observer
+        if let observer = playerLooperObserver {
+            NotificationCenter.default.removeObserver(observer)
+            playerLooperObserver = nil
+        }
+    }
+
+    private func addLoopObserver() {
+        guard let player = player else { return }
+
+        playerLooperObserver = NotificationCenter.default.addObserver(
+            forName: .AVPlayerItemDidPlayToEndTime,
+            object: player.currentItem,
+            queue: .main
+        ) { [weak self] _ in
+            self?.player?.seek(to: .zero)
+            self?.player?.play()
+        }
+    }
+    
+    override func setSelected(_ selected: Bool, animated: Bool) {
+        super.setSelected(selected, animated: animated)
+    }
+    
+}
