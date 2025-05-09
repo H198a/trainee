@@ -100,3 +100,38 @@ override func viewDidLayoutSubviews() {
     let imageFrame = imageFrameInImageView(drawingImg)
     drawingView.frame = imageFrame
 }
+
+
+
+
+import UIKit
+
+class ReelsVC: UIViewController {
+//MARK: Outlet and Variable Declaration
+    @IBOutlet weak var tblReels: UITableView!
+    
+    var arrImgs: [String] = ["img1","img2","img3","img4","img5","img6"]
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        setUP()
+    }
+}
+//MARK: Setup UI
+extension ReelsVC{
+    func setUP(){
+        let nibName = UINib(nibName: "ReelsCell", bundle: nil)
+        tblReels.register(nibName, forCellReuseIdentifier: "ReelsCell")
+    }
+}
+//MARK: UITableViewDataSource, UITableViewDelegate
+extension ReelsVC: UITableViewDataSource, UITableViewDelegate{
+    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+        return arrImgs.count
+    }
+    
+    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        let cell = tableView.dequeueReusableCell(withIdentifier: "ReelsCell", for: indexPath) as! ReelsCell
+        cell.imgReels.image = UIImage(named: arrImgs[indexPath.row])
+        return cell
+    }
+}
