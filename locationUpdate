@@ -1,3 +1,16 @@
+// Convert ussers ([String]) to AssignedUsers objects
+users = ussers.map { name in
+    let assignedUser = AssignedUsers(context: (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext)
+    assignedUser.name = name
+    return assignedUser
+}
+
+
+
+
+
+
+
 homwvc viewdidload
 let locationManager = CLLocationManager()
 var currentUserLocation: CLLocation?
