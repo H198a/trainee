@@ -353,3 +353,18 @@ class ReelsCell: UITableViewCell {
     }
     
 }
+
+
+
+func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+    let cell = tableView.dequeueReusableCell(withIdentifier: "ReelsCell", for: indexPath) as! ReelsCell
+    cell.configure(with: arrVideos[indexPath.row])
+    
+    let visibleRect = CGRect(origin: tableView.contentOffset, size: tableView.bounds.size)
+    let visiblePoint = CGPoint(x: visibleRect.midX, y: visibleRect.midY)
+    if let visibleIndexPath = tableView.indexPathForRow(at: visiblePoint), visibleIndexPath == indexPath {
+        cell.playVideo()
+    }
+
+    return cell
+}
