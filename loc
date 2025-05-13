@@ -209,3 +209,48 @@ import Foundation
      }
 
  }
+
+
+StoryViewVC’s cellForItemAt
+func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
+    let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "StoryViewCell", for: indexPath) as! StoryViewCell
+    let currentUser = storyDataa[indexPath.item]
+    cell.configure(with: currentUser.storyImage)
+    return cell
+}
+StoryViewCell.swift
+class StoryViewCell: UICollectionViewCell {
+    @IBOutlet weak var subImg: UIImageView!
+    @IBOutlet weak var lblStory: UILabel!
+    @IBOutlet weak var cvSubStories: UICollectionView!
+
+    var arrImgs: [UIImage] = []
+
+    override func awakeFromNib() {
+        super.awakeFromNib()
+        let nibName = UINib(nibName: "SubStoriesCell", bundle: nil)
+        cvSubStories.register(nibName, forCellWithReuseIdentifier: "SubStoriesCell")
+        cvSubStories.delegate = self
+        cvSubStories.dataSource = self
+    }
+
+    func configure(with images: [UIImage]) {
+        self.arrImgs = images
+        cvSubStories.reloadData()
+    }
+}
+extension StoryViewCell: UICollectionViewDataSource, UICollectionViewDelegate, UICollectionViewDelegateFlowLayout {
+    func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
+        return arrImgs.count // Dynamic based on current user
+    }
+
+    func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
+        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "SubStoriesCell", for: indexPath) as! SubStoriesCell
+        cell.imgStory.image = arrImgs[indexPath.item]
+        return cell
+    }
+
+    func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
+        return CGSize(width: cvSubStories.frame.width, height: cvSubStories.frame.height)
+    }
+}
