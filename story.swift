@@ -339,3 +339,43 @@ func showImage(at index: Int) {
 }
 
 
+
+protocol StoryViewCellDelegate: AnyObject {
+    func didFinishStories(for userIndex: Int)
+    func didRequestPreviousUser(from userIndex: Int)
+}
+
+func previousStory() {
+    if currentIndex > 0 {
+        currentIndex -= 1
+        resetProgressBars(from: currentIndex)
+        showImage(at: currentIndex)
+        animateProgressBar(at: currentIndex)
+    } else {
+        // At the beginning of current user's stories
+        delegate?.didRequestPreviousUser(from: currentUserIndex)
+    }
+}
+
+func didRequestPreviousUser(from userIndex: Int) {
+    let prevIndex = userIndex - 1
+    if prevIndex >= 0 {
+        currentUserIndex = prevIndex
+        let indexPath = IndexPath(item: prevIndex, section: 0)
+
+        cvStory.scrollToItem(at: indexPath, at: .centeredHorizontally, animated: false)
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
+            guard let self = self,
+                  let cell = self.cvStory.cellForItem(at: indexPath) as? StoryViewCell else {
+                return
+            }
+            let user = self.storyDataa[prevIndex]
+            cell.configure(with: user, userIndex: prevIndex)
+            cell.delegate = self
+        }
+    } else {
+        // You may want to dismiss or loop around to the last user
+        navigationController?.popToRootViewController(animated: true)
+    }
+}
