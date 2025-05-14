@@ -1,3 +1,38 @@
+func didMoveToPrevios(for userIndex: Int, startFromLast: Bool) {
+    let prevIndex = userIndex - 1
+    if prevIndex >= 0 {
+        currentUserIndex = prevIndex
+        let indexPath = IndexPath(item: prevIndex, section: 0)
+        
+        cvStory.scrollToItem(at: indexPath, at: .centeredHorizontally, animated: false)
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+            if let cell = self.cvStory.cellForItem(at: indexPath) as? StoryViewCell {
+                let user = self.storyDataa[prevIndex]
+                cell.configure(with: user, userIndex: prevIndex)
+                cell.delegate = self
+
+                if startFromLast {
+                    cell.startFromLastStory()
+                }
+            }
+        }
+    } else {
+        navigationController?.popViewController(animated: true)
+    }
+}
+func startFromLastStory() {
+    currentIndex = arrImgs.count - 1
+    showImage(at: currentIndex)
+    animateProgressBar(at: currentIndex)
+}
+
+
+
+
+
+
+
 
 func didMoveToPrevios(for userIndex: Int) {
     let prevIndex = userIndex - 1
