@@ -1,3 +1,28 @@
+func didMoveToPrevios(for userIndex: Int) {
+    let prevIndex = userIndex - 1
+    if prevIndex >= 0 {
+        currentUserIndex = prevIndex
+        cvStory.reloadData()
+        
+        // Ensure reconfiguration of the new cell
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+            if let cell = self.cvStory.visibleCells.first as? StoryViewCell {
+                let user = self.storyDataa[self.currentUserIndex]
+                cell.configure(with: user, userIndex: self.currentUserIndex)
+                cell.delegate = self
+            }
+        }
+    } else {
+        // Optional: pop or dismiss if you're at the first user
+        navigationController?.popViewController(animated: true)
+    }
+}
+
+
+
+
+
+
 import UIKit
 var arrStoryUsers: [StoryData] = [StoryData(name: "Lily", image: UIImage(named: "img10")!,storyImage:[UIImage(named: "img1")!,UIImage(named: "img2")!]),//1
         StoryData(name: "Allena", image: UIImage(named: "img2")!,storyImage:[UIImage(named: "img1")!,UIImage(named: "img2")!,UIImage(named: "img3")!,UIImage(named: "img4")!]),//4
