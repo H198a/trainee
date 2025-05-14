@@ -379,3 +379,65 @@ func didRequestPreviousUser(from userIndex: Int) {
         navigationController?.popToRootViewController(animated: true)
     }
 }
+
+
+extension StoryViewVC: UICollectionViewDataSource, UICollectionViewDelegate, UICollectionViewDelegateFlowLayout{
+    func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
+        print("main countss------",storyDataa.count)
+                return storyDataa.count
+//                return storyDataa[currentUserIndex].storyImage.count
+//        return arrStoryUsers[currentUserIndex].storyImage.count
+//        return 10
+    }
+    
+    func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
+        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "StoryViewCell", for: indexPath) as! StoryViewCell
+        let arrImages = storyDataa[currentUserIndex]
+        cell.configure(with: arrImages, userIndex: currentUserIndex)
+//        cell.configure(with: arrImages, userIndex: currentUserIndex)
+        cell.delegate = self
+        return cell
+    }
+    func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
+        let height: CGFloat = UIScreen.main.bounds.size.height
+        let width: CGFloat = UIScreen.main.bounds.size.width
+        return CGSize(width: width, height: height)
+    }
+}
+//MARK: StoryViewCellDelegate
+extension StoryViewVC: StoryViewCellDelegate{
+    func didFinishStories(for userIndex: Int) {
+           storyDataa[userIndex].isSeen = true
+           arrStoryUsers[userIndex].isSeen = true
+
+           let nextIndex = userIndex + 1
+           if nextIndex < storyDataa.count {
+               currentUserIndex = nextIndex
+               cvStory.reloadData()
+               
+               DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                   let indexPath = IndexPath(item: 0, section: 0)
+                   self.cvStory.scrollToItem(at: indexPath, at: .centeredHorizontally, animated: false)
+               }
+           } else {
+               if let storyVC = self.navigationController?.viewControllers.first(where: { $0 is StoryVC }) as? StoryVC {
+                   storyVC.cvStory.reloadData()  //  will apply new border
+               }
+               navigationController?.popToRootViewController(animated: true)
+           }
+       }
+    func didMoveToPrevios(for userIndex: Int) {
+        
+        let prevIndex = userIndex - 1
+        if prevIndex >= 0 {
+            currentUserIndex = prevIndex
+            cvStory.reloadData()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                let indexPath = IndexPath(item: 0, section: 0)
+                self.cvStory.scrollToItem(at: indexPath, at: .centeredHorizontally, animated: false)
+            }
+        } else {
+            print("jkadhkafiegbbvhwevhvdewd wfwd===========")
+            navigationController?.popViewController(animated: true)
+        }
+    }
